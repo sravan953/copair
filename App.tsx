@@ -1,188 +1,283 @@
-import React, { useState, useEffect } from 'react';
-import ProblemPanel from './components/ProblemPanel';
-import CodeEditor from './components/CodeEditor';
-import JudgePanel from './components/JudgePanel';
-import { Problem, ChatMessage, ExecutionResult } from './types';
-import { generateProblem, judgeSubmission, chatWithJudge } from './services/geminiService';
-import { initPyodide, runPythonCode } from './services/pyodideService';
-import { Code2 } from 'lucide-react';
+import React, { useState } from 'react';
+
+interface Question {
+  topic: string;
+  question: string;
+  options: string[];
+  answer: string;
+}
+
+const questions: Question[] = [
+  {
+    "topic": "Arrays & Hashing",
+    "question": "Which characteristic of a Hash Map allows it to solve the 'Two Sum' problem in O(n) time?",
+    "options": [
+      "It keeps elements sorted for binary search.",
+      "It provides O(1) average time complexity for lookups.",
+      "It uses a stack to track previous elements."
+    ],
+    "answer": "It provides O(1) average time complexity for lookups."
+  },
+  {
+    "topic": "Two Pointers",
+    "question": "In a sorted array, how does the Two Pointer technique optimize finding a target sum?",
+    "options": [
+      "It allows us to skip elements based on the sum being too small or too large.",
+      "It sorts the array while searching to save time.",
+      "It splits the array in half recursively like Merge Sort."
+    ],
+    "answer": "It allows us to skip elements based on the sum being too small or too large."
+  },
+  {
+    "topic": "Stack",
+    "question": "Which scenario strictly requires the Last-In-First-Out (LIFO) property of a Stack?",
+    "options": [
+      "Managing a printer queue.",
+      "Validating nested parentheses in code.",
+      "Finding the shortest path in a graph."
+    ],
+    "answer": "Validating nested parentheses in code."
+  },
+  // {
+  //   "topic": "Binary Search",
+  //   "question": "What is the strict precondition required to apply Binary Search?",
+  //   "options": [
+  //     "The dataset must be sorted.",
+  //     "The dataset must contain no duplicates.",
+  //     "The dataset must be a Linked List."
+  //   ],
+  //   "answer": "The dataset must be sorted."
+  // },
+  // {
+  //   "topic": "Sliding Window",
+  //   "question": "Why is a Sliding Window efficient for finding the longest substring without repeats?",
+  //   "options": [
+  //     "It sorts the string first to group characters.",
+  //     "It avoids re-processing the same characters by dynamically resizing the window.",
+  //     "It breaks the string into small fixed-size chunks."
+  //   ],
+  //   "answer": "It avoids re-processing the same characters by dynamically resizing the window."
+  // },
+  // {
+  //   "topic": "Linked List",
+  //   "question": "What is the primary trade-off of a Singly Linked List compared to an Array?",
+  //   "options": [
+  //     "Faster random access (indexing), but slower insertion/deletion.",
+  //     "Slower random access (indexing), but faster insertion/deletion at known nodes.",
+  //     "Uses less memory per element than an Array."
+  //   ],
+  //   "answer": "Slower random access (indexing), but faster insertion/deletion at known nodes."
+  // },
+  // {
+  //   "topic": "Trees",
+  //   "question": "Which data structure is implicitly used to manage a recursive Depth-First Search (DFS)?",
+  //   "options": [
+  //     "Queue",
+  //     "Stack (Call Stack)",
+  //     "Hash Map"
+  //   ],
+  //   "answer": "Stack (Call Stack)"
+  // },
+  // {
+  //   "topic": "Tries",
+  //   "question": "Why is a Trie preferred over a Hash Map for 'Autocomplete' features?",
+  //   "options": [
+  //     "It uses less memory for completely random strings.",
+  //     "It allows efficient prefix-based lookups.",
+  //     "It has a faster worst-case lookup time than a balanced BST."
+  //   ],
+  //   "answer": "It allows efficient prefix-based lookups."
+  // },
+  // {
+  //   "topic": "Heap / Priority Queue",
+  //   "question": "Which approach efficiently finds the K-th largest element in a stream?",
+  //   "options": [
+  //     "Sorting the entire stream every time a number is added.",
+  //     "Maintaining a Min-Heap of size K.",
+  //     "Using a Max-Heap of size N."
+  //   ],
+  //   "answer": "Maintaining a Min-Heap of size K."
+  // },
+  // {
+  //   "topic": "Backtracking",
+  //   "question": "What distinguishes Backtracking from naive brute-force recursion?",
+  //   "options": [
+  //     "It uses a Queue instead of a Stack.",
+  //     "It 'prunes' or abandons paths that assume invalid conditions early.",
+  //     "It always finds the optimal solution faster than Dynamic Programming."
+  //   ],
+  //   "answer": "It 'prunes' or abandons paths that assume invalid conditions early."
+  // },
+  // {
+  //   "topic": "Intervals",
+  //   "question": "What is the critical preprocessing step for the 'Merge Intervals' problem?",
+  //   "options": [
+  //     "Sorting the intervals by their start times.",
+  //     "Sorting the intervals by their duration.",
+  //     "Building a segment tree."
+  //   ],
+  //   "answer": "Sorting the intervals by their start times."
+  // },
+  // {
+  //   "topic": "Greedy",
+  //   "question": "What is the common risk when applying a Greedy algorithm?",
+  //   "options": [
+  //     "It uses too much memory.",
+  //     "It makes a locally optimal choice that may not lead to a globally optimal solution.",
+  //     "It is too slow for small datasets."
+  //   ],
+  //   "answer": "It makes a locally optimal choice that may not lead to a globally optimal solution."
+  // },
+  // {
+  //   "topic": "Graphs",
+  //   "question": "Which representation is more memory efficient for a 'sparse' graph?",
+  //   "options": [
+  //     "Adjacency Matrix",
+  //     "Adjacency List",
+  //     "Edge List sorted by weight"
+  //   ],
+  //   "answer": "Adjacency List"
+  // },
+  // {
+  //   "topic": "Advanced Graphs",
+  //   "question": "Why does Dijkstra's algorithm fail on graphs with negative edge weights?",
+  //   "options": [
+  //     "It cannot detect cycles.",
+  //     "It assumes that adding an edge always increases the total path cost.",
+  //     "It is too computationally expensive."
+  //   ],
+  //   "answer": "It assumes that adding an edge always increases the total path cost."
+  // },
+  // {
+  //   "topic": "1-D DP",
+  //   "question": "What is 'Memoization' in Dynamic Programming?",
+  //   "options": [
+  //     "Solving the problem iteratively from the bottom up.",
+  //     "Caching the results of expensive function calls to avoid redundant work.",
+  //     "Guessing the solution and verifying it."
+  //   ],
+  //   "answer": "Caching the results of expensive function calls to avoid redundant work."
+  // },
+  // {
+  //   "topic": "2-D DP",
+  //   "question": "In 'Unique Paths' (grid traversal), what does dp[i][j] typically depend on?",
+  //   "options": [
+  //     "The value of the cell itself only.",
+  //     "The sum of paths from the cell above (i-1, j) and the cell to the left (i, j-1).",
+  //     "The minimum path from the start to the end."
+  //   ],
+  //   "answer": "The sum of paths from the cell above (i-1, j) and the cell to the left (i, j-1)."
+  // },
+  // {
+  //   "topic": "Bit Manipulation",
+  //   "question": "How can XOR find a missing number in an array where others appear twice?",
+  //   "options": [
+  //     "XORing a number with itself yields 0, leaving only the unique number.",
+  //     "XOR adds the bits together to find the sum.",
+  //     "XOR sorts the bits in ascending order."
+  //   ],
+  //   "answer": "XORing a number with itself yields 0, leaving only the unique number."
+  // },
+  // {
+  //   "topic": "Math & Geometry",
+  //   "question": "How does Floyd's Cycle Detection (Tortoise and Hare) work?",
+  //   "options": [
+  //     "It marks every visited node in a Hash Set.",
+  //     "It uses two pointers moving at different speeds; if they meet, there is a cycle.",
+  //     "It reverses the list and checks if the head is reachable."
+  //   ],
+  //   "answer": "It uses two pointers moving at different speeds; if they meet, there is a cycle."
+  // }
+];
 
 const App: React.FC = () => {
-  const [problem, setProblem] = useState<Problem | null>(null);
-  const [code, setCode] = useState<string>('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
-  
-  const [isProblemLoading, setIsProblemLoading] = useState(false);
-  const [isRunning, setIsRunning] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [answers, setAnswers] = useState<{ [key: number]: string }>({});
 
-  // Initialize
-  useEffect(() => {
-    const init = async () => {
-        // Start loading Pyodide in background
-        initPyodide(); 
-        
-        // Load initial problem
-        await loadNewProblem();
-    };
-    init();
-  }, []);
-
-  const loadNewProblem = async () => {
-    setIsProblemLoading(true);
-    setExecutionResult(null);
-    setMessages([{
-        role: 'model',
-        text: 'Welcome! I am the AI Judge. I have generated a problem for you. Read the description on the left, write your solution in the middle, and click "Submit" when you are ready for me to review it.',
-        timestamp: Date.now()
-    }]);
-    
-    try {
-      const newProblem = await generateProblem();
-      setProblem(newProblem);
-      setCode(newProblem.starterCode || '');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsProblemLoading(false);
-    }
+  const handleAnswerChange = (questionIndex: number, optionText: string) => {
+    setAnswers(prev => ({
+      ...prev,
+      [questionIndex]: optionText
+    }));
   };
 
-  const handleRunCode = async () => {
-    setIsRunning(true);
-    setExecutionResult(null); // Clear previous
-    try {
-      const result = await runPythonCode(code);
-      setExecutionResult(result);
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!problem) return;
-    
-    setIsSubmitting(true);
-    // 1. Run the code first to get output for the judge
-    const result = await runPythonCode(code);
-    setExecutionResult(result);
-
-    // 2. Add user "action" to chat log visually (optional, or just show the judge response)
-    const userSubmissionMsg: ChatMessage = {
-        role: 'user',
-        text: "I've submitted my solution. Please review it.",
-        timestamp: Date.now()
-    };
-    setMessages(prev => [...prev, userSubmissionMsg]);
-    setIsChatLoading(true);
-
-    // 3. Send to Gemini Judge
-    try {
-        const judgment = await judgeSubmission(problem, code, result.output, result.error);
-        
-        const judgeMsg: ChatMessage = {
-            role: 'model',
-            text: judgment,
-            timestamp: Date.now()
-        };
-        setMessages(prev => [...prev, judgeMsg]);
-    } catch (e) {
-        console.error(e);
-    } finally {
-        setIsSubmitting(false);
-        setIsChatLoading(false);
-    }
-  };
-
-  const handleSendMessage = async (text: string) => {
-      const newMsg: ChatMessage = { role: 'user', text, timestamp: Date.now() };
-      setMessages(prev => [...prev, newMsg]);
-      setIsChatLoading(true);
-
-      try {
-          // Construct history for Gemini chat
-          const history = messages.map(m => ({
-              role: m.role,
-              parts: [{ text: m.text }]
-          }));
-          history.push({ role: 'user', parts: [{ text }]});
-
-          // If we have context about the current code, prepend it strictly to the last message context internally or rely on history
-          // But `chatWithJudge` service uses `sendMessage`, so we rely on conversation flow.
-          // To give context about current code state if the user asks "what's wrong with line 5", 
-          // we might ideally send the code as a hidden system context update, but for simplicity here we just chat.
-          
-          const responseText = await chatWithJudge(messages.map(m => ({ role: m.role, parts: [{ text: m.text }] })), text);
-          
-          const responseMsg: ChatMessage = {
-              role: 'model',
-              text: responseText,
-              timestamp: Date.now()
-          };
-          setMessages(prev => [...prev, responseMsg]);
-      } finally {
-          setIsChatLoading(false);
-      }
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Answers:', answers);
   };
 
   return (
-    <div className="h-screen w-screen bg-slate-950 flex flex-col overflow-hidden">
-      {/* Navbar */}
-      <nav className="h-14 bg-slate-900 border-b border-slate-800 flex items-center px-4 justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-            <div className="bg-emerald-600 p-1.5 rounded-lg">
-                <Code2 size={20} className="text-white" />
+    <div className="h-screen w-full bg-gray-50 flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="w-full bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
+        <h1 className="text-2xl font-semibold text-gray-900">CoPair</h1>
+      </header>
+
+      {/* Main Content - Scrollable */}
+      <main className="flex-1 w-full overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-6 py-8">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {questions.map((q, index) => (
+            <div
+              key={index}
+              className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow"
+            >
+              {/* Topic Badge */}
+              <div className="mb-3">
+                <span className="inline-block px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">
+                  {q.topic}
+                </span>
+              </div>
+
+              {/* Question */}
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Q{index + 1}. {q.question}
+              </h2>
+
+              {/* Options */}
+              <div className="space-y-3">
+                {q.options.map((option, optionIndex) => {
+                  const optionLabel = String.fromCharCode(65 + optionIndex); // A, B, C
+                  const isSelected = answers[index] === option;
+                  return (
+                    <label
+                      key={optionIndex}
+                      className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={`question-${index}`}
+                        value={option}
+                        checked={isSelected}
+                        onChange={() => handleAnswerChange(index, option)}
+                        className="mt-1 mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-700 mr-2">{optionLabel}.</span>
+                        <span className="text-gray-900">{option}</span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
-            <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                CodeJudge AI
-            </h1>
-        </div>
-        <div className="flex items-center gap-4 text-sm text-slate-400">
-            <span>Powered by Gemini 2.5 & Pyodide</span>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub</a>
-        </div>
-      </nav>
+          ))}
 
-      {/* Main Grid */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
-        {/* Left: Problem (3 cols) */}
-        <div className="hidden lg:block lg:col-span-3 h-full overflow-hidden">
-          <ProblemPanel 
-            problem={problem} 
-            loading={isProblemLoading} 
-            onGenerateNew={loadNewProblem} 
-          />
+          {/* Submit Button */}
+          <div className="pt-4 pb-8">
+            <button
+              type="submit"
+              className="w-full max-w-md mx-auto block bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-lg transition-colors shadow-sm hover:shadow-md"
+            >
+              Submit
+            </button>
+          </div>
+        </form>
         </div>
-
-        {/* Middle: Code Editor (5 cols) */}
-        <div className="col-span-1 lg:col-span-5 h-full overflow-hidden border-r border-slate-800">
-           <CodeEditor 
-             code={code}
-             onChange={setCode}
-             onRun={handleRunCode}
-             onSubmit={handleSubmit}
-             isRunning={isRunning}
-             isSubmitting={isSubmitting}
-           />
-        </div>
-
-        {/* Right: Judge/Chat (4 cols) */}
-        <div className="hidden lg:block lg:col-span-4 h-full overflow-hidden bg-slate-900">
-           <JudgePanel 
-             messages={messages}
-             executionResult={executionResult}
-             onSendMessage={handleSendMessage}
-             isChatLoading={isChatLoading}
-           />
-        </div>
-        
-        {/* Mobile View Toggle (Simplified for this demo, keeping it desktop focused mainly but functional) */}
-        <div className="lg:hidden col-span-1 h-full bg-slate-900 flex items-center justify-center text-slate-500 p-8 text-center">
-            <p>Please use a desktop browser for the best coding experience.</p>
-        </div>
-      </div>
+      </main>
     </div>
   );
 };
