@@ -1,0 +1,5 @@
+{
+  "name": "CodeJudge AI",
+  "description": "A LeetCode-style Python coding interview platform featuring a real-time browser-based Python executor (Pyodide) and an AI Judge powered by Gemini 2.5.",
+  "requestFramePermissions": []
+}
