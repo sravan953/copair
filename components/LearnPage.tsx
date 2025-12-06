@@ -5,7 +5,7 @@ import MonacoEditor from './MonacoEditor';
 import { runPythonCode, runPythonCodeWithTests, initPyodide } from '../services/pyodideService';
 import { ExecutionResult } from '../types';
 import { requestHint } from '../services/geminiService';
-import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface LearnPageProps {
   questions: (LearningQuestion | undefined)[];
@@ -46,6 +46,8 @@ const LearnPage: React.FC<LearnPageProps> = ({
   const [hints, setHints] = useState<Hint[]>([]);
   const [isLoadingHint, setIsLoadingHint] = useState(false);
   const [hintThreshold, setHintThreshold] = useState(1);
+  const [isOutputCollapsed, setIsOutputCollapsed] = useState(false);
+  const [canRequestHint, setCanRequestHint] = useState(false);
 
   const isGeneratingCurrent = generatingQuestionIndex === currentIndex;
 
@@ -102,6 +104,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
       // Reset try count and hints when question changes
       setTryCount(0);
       setHints([]);
+      setCanRequestHint(false);
     } else {
       // Clear code when question is not available yet
       setCode('');
@@ -109,6 +112,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
       // Reset try count and hints when question is cleared
       setTryCount(0);
       setHints([]);
+      setCanRequestHint(false);
     }
   }, [currentQuestion, currentIndex]);
 
@@ -167,37 +171,17 @@ const LearnPage: React.FC<LearnPageProps> = ({
           console.log('[LearnPage] All tests passed, resetting try count and hints');
           setTryCount(0);
           setHints([]);
+          setCanRequestHint(false);
         } else {
           // Increment try count for failed attempts
           const newTryCount = tryCount + 1;
           setTryCount(newTryCount);
           console.log('[LearnPage] Tests failed, try count:', newTryCount);
           
-          // Request hint if threshold is met
-          if (newTryCount % hintThreshold === 0 && !isLoadingHint) {
-            console.log('[LearnPage] Requesting hint (try count:', newTryCount, ', threshold:', hintThreshold, ')');
-            setIsLoadingHint(true);
-            
-            try {
-              const hintText = await requestHint(
-                currentQuestion,
-                code,
-                hints,
-                result.testResults
-              );
-              
-              const newHint: Hint = {
-                text: hintText,
-                timestamp: Date.now()
-              };
-              
-              setHints(prev => [...prev, newHint]);
-              console.log('[LearnPage] Hint received and added');
-            } catch (err) {
-              console.error('[LearnPage] Error requesting hint:', err);
-            } finally {
-              setIsLoadingHint(false);
-            }
+          // Show button to request hint if threshold is met
+          if (newTryCount % hintThreshold === 0) {
+            console.log('[LearnPage] Hint available (try count:', newTryCount, ', threshold:', hintThreshold, ')');
+            setCanRequestHint(true);
           }
         }
       }
@@ -341,7 +325,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
         </div>
 
         {/* Middle Column - Code Editor */}
-        <div className="w-1/3 flex flex-col">
+        <div className={isOutputCollapsed ? "flex-1 flex flex-col" : "w-1/3 flex flex-col"}>
           <MonacoEditor
             key={currentIndex}
             code={code}
@@ -350,15 +334,61 @@ const LearnPage: React.FC<LearnPageProps> = ({
             isRunning={isRunning}
             hints={hints}
             isLoadingHint={isLoadingHint}
+            canRequestHint={canRequestHint}
+            onRequestHint={async () => {
+              if (!currentQuestion || isLoadingHint) return;
+              
+              setIsLoadingHint(true);
+              setCanRequestHint(false);
+              
+              try {
+                const hintText = await requestHint(
+                  currentQuestion,
+                  code,
+                  hints,
+                  executionResult?.testResults
+                );
+                
+                const newHint: Hint = {
+                  text: hintText,
+                  timestamp: Date.now()
+                };
+                
+                setHints(prev => [...prev, newHint]);
+                console.log('[LearnPage] Hint received and added');
+              } catch (err) {
+                console.error('[LearnPage] Error requesting hint:', err);
+                setCanRequestHint(true); // Re-enable button on error
+              } finally {
+                setIsLoadingHint(false);
+              }
+            }}
           />
         </div>
 
         {/* Right Column - Output */}
-        <div className="w-1/3 flex flex-col bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 overflow-hidden">
-          <div className="h-12 bg-gray-100 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center px-4 flex-shrink-0">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-200">Output</h3>
+        {isOutputCollapsed ? (
+          <div className="w-8 flex flex-col bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 overflow-hidden cursor-pointer group hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+               onClick={() => setIsOutputCollapsed(false)}
+               title="Expand Output">
+            <div className="flex-1 flex items-center justify-center">
+              <ChevronLeft size={16} className="text-gray-400 dark:text-slate-500 group-hover:text-gray-600 dark:group-hover:text-slate-300 transition-colors" />
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+        ) : (
+          <div className="w-1/3 flex flex-col bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 overflow-hidden min-w-0">
+            <div className="h-12 bg-gray-100 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-4 flex-shrink-0">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-200">Output</h3>
+              <button
+                onClick={() => setIsOutputCollapsed(true)}
+                className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded transition-colors"
+                title="Collapse Output"
+                aria-label="Collapse Output"
+              >
+                <ChevronRight size={16} className="text-gray-600 dark:text-slate-400" />
+              </button>
+            </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 custom-scrollbar min-w-0">
             {executionResult ? (
               <div className="space-y-3">
                 {executionResult.testResults && executionResult.testResults.cases.length > 0 ? (
@@ -388,7 +418,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
                       {executionResult.testResults.cases.map((testCase, index) => (
                         <div
                           key={index}
-                          className={`rounded-lg p-3 border ${
+                          className={`rounded-lg p-3 border min-w-0 ${
                             testCase.passed
                               ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/50'
                               : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50'
@@ -400,28 +430,28 @@ const LearnPage: React.FC<LearnPageProps> = ({
                             ) : (
                               <X size={18} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                             )}
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <p className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                                 Test Case {index + 1}
                               </p>
-                              <div className="bg-gray-100 dark:bg-slate-800/50 rounded p-2 mb-2">
+                              <div className="bg-gray-100 dark:bg-slate-800/50 rounded p-2 mb-2 min-w-0">
                                 <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Input:</p>
-                                <pre className="text-xs text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap">
+                                <pre className="text-xs text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap break-words overflow-wrap-anywhere">
                                   {testCase.input}
                                 </pre>
                               </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-gray-100 dark:bg-slate-800/50 rounded p-2">
+                              <div className="grid grid-cols-2 gap-2 min-w-0">
+                                <div className="bg-gray-100 dark:bg-slate-800/50 rounded p-2 min-w-0">
                                   <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Expected:</p>
-                                  <pre className="text-xs text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap">
+                                  <pre className="text-xs text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap break-words overflow-wrap-anywhere">
                                     {testCase.expectedOutput}
                                   </pre>
                                 </div>
-                                <div className={`rounded p-2 ${
+                                <div className={`rounded p-2 min-w-0 ${
                                   testCase.passed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'
                                 }`}>
                                   <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Got:</p>
-                                  <pre className={`text-xs font-mono whitespace-pre-wrap ${
+                                  <pre className={`text-xs font-mono whitespace-pre-wrap break-words overflow-wrap-anywhere ${
                                     testCase.passed ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
                                   }`}>
                                     {testCase.actualOutput}
@@ -442,16 +472,16 @@ const LearnPage: React.FC<LearnPageProps> = ({
                 ) : (
                   <>
                     {/* Standard Output Display (when no test cases) */}
-                    <div className="bg-gray-100 dark:bg-slate-800 rounded-lg p-3">
+                    <div className="bg-gray-100 dark:bg-slate-800 rounded-lg p-3 min-w-0">
                       <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Stdout:</p>
-                      <pre className="text-sm text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap">
+                      <pre className="text-sm text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap break-words overflow-wrap-anywhere">
                         {executionResult.output || '(no output)'}
                       </pre>
                     </div>
                     {executionResult.error && (
-                      <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                      <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 min-w-0">
                         <p className="text-xs text-red-600 dark:text-red-400 mb-1">Stderr:</p>
-                        <pre className="text-sm text-red-700 dark:text-red-300 font-mono whitespace-pre-wrap">
+                        <pre className="text-sm text-red-700 dark:text-red-300 font-mono whitespace-pre-wrap break-words overflow-wrap-anywhere">
                           {executionResult.error}
                         </pre>
                       </div>
@@ -465,7 +495,8 @@ const LearnPage: React.FC<LearnPageProps> = ({
               </div>
             )}
           </div>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

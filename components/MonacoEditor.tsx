@@ -10,6 +10,8 @@ interface MonacoEditorProps {
   isRunning: boolean;
   hints: Hint[];
   isLoadingHint: boolean;
+  canRequestHint: boolean;
+  onRequestHint: () => void;
 }
 
 declare global {
@@ -20,7 +22,7 @@ declare global {
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({ 
-  code, onChange, onRun, isRunning, hints, isLoadingHint
+  code, onChange, onRun, isRunning, hints, isLoadingHint, canRequestHint, onRequestHint
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
@@ -74,6 +76,12 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
           lineNumbers: 'on',
           scrollBeyondLastLine: false,
           wordWrap: 'on',
+          quickSuggestions: true,
+          suggestOnTriggerCharacters: true,
+          acceptSuggestionOnEnter: 'on',
+          tabCompletion: 'on',
+          formatOnPaste: true,
+          formatOnType: true,
         });
 
         console.log('[MonacoEditor] Monaco editor created successfully');
@@ -154,7 +162,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       <div className="flex-1 relative overflow-hidden flex flex-col">
         <div className="flex-1 relative overflow-hidden" ref={containerRef} />
         {/* Hint Bar */}
-        <HintBar hints={hints} isLoadingHint={isLoadingHint} />
+        <HintBar hints={hints} isLoadingHint={isLoadingHint} canRequestHint={canRequestHint} onRequestHint={onRequestHint} />
       </div>
     </div>
   );

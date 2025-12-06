@@ -350,7 +350,10 @@ const App: React.FC = () => {
               <ArrowLeft size={20} className="text-gray-700 dark:text-slate-300" />
             </button>
           )}
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-slate-200">
+          <h1 
+            onClick={() => setView('quiz')}
+            className="text-2xl font-semibold text-gray-900 dark:text-slate-200 cursor-pointer hover:text-gray-700 dark:hover:text-slate-300 transition-colors"
+          >
             CoPair
           </h1>
         </div>

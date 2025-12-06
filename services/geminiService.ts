@@ -170,6 +170,33 @@ Analyze the user's performance and provide a structured analysis. Calculate the 
       throw parseError;
     }
     
+    // Build weakAreas from Gemini response, but ensure all topics with incorrect answers are included
+    const geminiWeakAreas = Array.isArray(parsed.weakAreas) ? parsed.weakAreas : [];
+    const geminiWeakAreasMap = new Map<string, any>();
+    geminiWeakAreas.forEach((area: any) => {
+      if (area.topic) {
+        geminiWeakAreasMap.set(area.topic, area);
+      }
+    });
+
+    // Create weakAreas for all topics with incorrect answers
+    // Use Gemini's analysis if available, otherwise create default entries
+    const weakAreas = Array.from(topicStats.entries())
+      .filter(([_, stats]) => stats.incorrect > 0)
+      .map(([topic, stats]) => {
+        const geminiArea = geminiWeakAreasMap.get(topic);
+        return {
+          topic,
+          incorrectCount: stats.incorrect,
+          totalQuestions: stats.total,
+          severity: geminiArea && ['high', 'medium', 'low'].includes(geminiArea.severity) 
+            ? geminiArea.severity 
+            : (stats.incorrect === stats.total ? 'high' : stats.incorrect / stats.total > 0.5 ? 'medium' : 'low'),
+          commonMistakes: Array.isArray(geminiArea?.commonMistakes) ? geminiArea.commonMistakes : [],
+          recommendations: Array.isArray(geminiArea?.recommendations) ? geminiArea.recommendations : []
+        };
+      });
+
     // Validate and set defaults
     const analysisResult: AnalysisResult = {
       overallScore: {
@@ -177,22 +204,7 @@ Analyze the user's performance and provide a structured analysis. Calculate the 
         total: parsed.overallScore?.total ?? totalCount,
         percentage: parsed.overallScore?.percentage ?? percentage
       },
-      weakAreas: Array.isArray(parsed.weakAreas) ? parsed.weakAreas
-        .map((area: any) => {
-          const topic = area.topic || "Unknown";
-          const stats = topicStats.get(topic) || { total: 0, incorrect: 0 };
-          
-          return {
-            topic,
-            incorrectCount: stats.incorrect, // Use calculated value, not Gemini's
-            totalQuestions: stats.total, // Use calculated value, not Gemini's
-            severity: ['high', 'medium', 'low'].includes(area.severity) ? area.severity : 'medium',
-            commonMistakes: Array.isArray(area.commonMistakes) ? area.commonMistakes : [],
-            recommendations: Array.isArray(area.recommendations) ? area.recommendations : []
-          };
-        })
-        .filter(area => area.incorrectCount > 0) // Only include topics with incorrect answers
-        : [],
+      weakAreas: weakAreas,
       strengths: Array.isArray(parsed.strengths) ? parsed.strengths
         .map((strength: any) => {
           const topic = strength.topic || "Unknown";
