@@ -87,3 +87,8 @@ export interface LearningQuestion {
     expectedOutput: string;  // Expected output as string, e.g., "[0, 2]"
   }[];
 }
+
+export interface Hint {
+  text: string;
+  timestamp: number;
+}

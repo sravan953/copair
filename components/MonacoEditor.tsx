@@ -1,11 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { Play } from 'lucide-react';
+import { Hint } from '../types';
+import HintBar from './HintBar';
 
 interface MonacoEditorProps {
   code: string;
   onChange: (code: string) => void;
   onRun: () => void;
   isRunning: boolean;
+  hints: Hint[];
+  isLoadingHint: boolean;
 }
 
 declare global {
@@ -16,7 +20,7 @@ declare global {
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({ 
-  code, onChange, onRun, isRunning 
+  code, onChange, onRun, isRunning, hints, isLoadingHint
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
@@ -124,7 +128,11 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
       </div>
 
       {/* Editor Area */}
-      <div className="flex-1 relative overflow-hidden" ref={containerRef} />
+      <div className="flex-1 relative overflow-hidden flex flex-col">
+        <div className="flex-1 relative overflow-hidden" ref={containerRef} />
+        {/* Hint Bar */}
+        <HintBar hints={hints} isLoadingHint={isLoadingHint} />
+      </div>
     </div>
   );
 };

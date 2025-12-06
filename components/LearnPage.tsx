@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { LearningQuestion } from '../types';
+import { LearningQuestion, Hint } from '../types';
 import MonacoEditor from './MonacoEditor';
 import { runPythonCode, runPythonCodeWithTests, initPyodide } from '../services/pyodideService';
 import { ExecutionResult } from '../types';
+import { requestHint } from '../services/geminiService';
 import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 
 interface LearnPageProps {
@@ -41,6 +42,10 @@ const LearnPage: React.FC<LearnPageProps> = ({
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [tryCount, setTryCount] = useState(0);
+  const [hints, setHints] = useState<Hint[]>([]);
+  const [isLoadingHint, setIsLoadingHint] = useState(false);
+  const [hintThreshold, setHintThreshold] = useState(1);
 
   const isGeneratingCurrent = generatingQuestionIndex === currentIndex;
 
@@ -94,10 +99,16 @@ const LearnPage: React.FC<LearnPageProps> = ({
       console.log('[LearnPage]   Starter code length:', currentQuestion.starterCode.length);
       setCode(currentQuestion.starterCode);
       setExecutionResult(null);
+      // Reset try count and hints when question changes
+      setTryCount(0);
+      setHints([]);
     } else {
       // Clear code when question is not available yet
       setCode('');
       setExecutionResult(null);
+      // Reset try count and hints when question is cleared
+      setTryCount(0);
+      setHints([]);
     }
   }, [currentQuestion, currentIndex]);
 
@@ -146,6 +157,50 @@ const LearnPage: React.FC<LearnPageProps> = ({
       }
       
       setExecutionResult(result);
+      
+      // Handle hint logic after test execution
+      if (result.testResults && currentQuestion) {
+        const allTestsPassed = result.testResults.passed === result.testResults.total;
+        
+        if (allTestsPassed) {
+          // Reset try count and hints when all tests pass
+          console.log('[LearnPage] All tests passed, resetting try count and hints');
+          setTryCount(0);
+          setHints([]);
+        } else {
+          // Increment try count for failed attempts
+          const newTryCount = tryCount + 1;
+          setTryCount(newTryCount);
+          console.log('[LearnPage] Tests failed, try count:', newTryCount);
+          
+          // Request hint if threshold is met
+          if (newTryCount % hintThreshold === 0 && !isLoadingHint) {
+            console.log('[LearnPage] Requesting hint (try count:', newTryCount, ', threshold:', hintThreshold, ')');
+            setIsLoadingHint(true);
+            
+            try {
+              const hintText = await requestHint(
+                currentQuestion,
+                code,
+                hints,
+                result.testResults
+              );
+              
+              const newHint: Hint = {
+                text: hintText,
+                timestamp: Date.now()
+              };
+              
+              setHints(prev => [...prev, newHint]);
+              console.log('[LearnPage] Hint received and added');
+            } catch (err) {
+              console.error('[LearnPage] Error requesting hint:', err);
+            } finally {
+              setIsLoadingHint(false);
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error('[LearnPage] Code execution error:', err);
       setExecutionResult({
@@ -333,6 +388,8 @@ const LearnPage: React.FC<LearnPageProps> = ({
             onChange={setCode}
             onRun={handleRun}
             isRunning={isRunning}
+            hints={hints}
+            isLoadingHint={isLoadingHint}
           />
         </div>
 

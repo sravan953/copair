@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
-import { Problem, AnalysisResult, LearningQuestion } from "../types";
+import { Problem, AnalysisResult, LearningQuestion, Hint } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -353,6 +353,130 @@ Return only valid JSON. Do not include any additional text, explanations, or mar
     return question;
   } catch (err) {
     console.error("Error generating learning question:", err);
+    throw err;
+  }
+};
+
+export const requestHint = async (
+  question: LearningQuestion,
+  userCode: string,
+  previousHints: Hint[],
+  testResults?: { passed: number; total: number; cases: Array<{ input: string; expectedOutput: string; actualOutput: string; passed: boolean; error?: string }> }
+): Promise<string> => {
+  console.log('[GeminiService] requestHint called');
+  console.log('[GeminiService]   Previous hints count:', previousHints.length);
+  console.log('[GeminiService]   User code length:', userCode.length);
+  
+  // Build question details
+  const questionDetails = `Problem: ${question.title}
+Topic: ${question.topic}
+
+Description:
+${question.question}
+
+Example 1:
+Input: ${question.example1.input}
+Output: ${question.example1.output}
+Explanation: ${question.example1.outputExplanation}
+
+Example 2:
+Input: ${question.example2.input}
+Output: ${question.example2.output}
+Explanation: ${question.example2.outputExplanation}
+
+Test Cases:
+${question.testCases.map((tc, i) => `Test ${i + 1}: Input: ${tc.input}, Expected Output: ${tc.expectedOutput}`).join('\n')}`;
+
+  // Build test results context if available
+  let testContext = '';
+  if (testResults) {
+    const failedTests = testResults.cases.filter(tc => !tc.passed);
+    if (failedTests.length > 0) {
+      testContext = `\n\nCurrent Test Results:
+- Passed: ${testResults.passed}/${testResults.total}
+- Failed Tests:
+${failedTests.map((tc, i) => `  ${i + 1}. Input: ${tc.input}\n     Expected: ${tc.expectedOutput}\n     Got: ${tc.actualOutput}${tc.error ? `\n     Error: ${tc.error}` : ''}`).join('\n')}`;
+    }
+  }
+
+  // Build conversation history with previous hints
+  let conversationHistory = '';
+  if (previousHints.length > 0) {
+    conversationHistory = `\n\nPrevious Hints Given:\n${previousHints.map((hint, i) => `Hint ${i + 1}: ${hint.text}`).join('\n')}`;
+  }
+
+  const prompt = `You are a helpful coding tutor helping a student solve a coding problem. Your role is to provide gentle hints that nudge the student toward the solution without giving away the answer directly.
+
+${questionDetails}${testContext}
+
+Student's Current Code:
+\`\`\`python
+${userCode}
+\`\`\`${conversationHistory}
+
+Based on the problem description, examples, test cases, and the student's current code${previousHints.length > 0 ? ' (and previous hints given)' : ''}, provide a gentle hint that guides them toward solving the problem.
+
+Guidelines for your hint:
+- Point them in the right direction *WITHOUT* revealing the solution
+- If they've received previous hints, build upon them progressively
+- Focus on the specific issue preventing them from passing the tests
+- Keep the hint concise (1-2 sentences, maximum 150 characters)
+
+Return only valid JSON with the hint text.`;
+
+  try {
+    console.log('[GeminiService] Calling Gemini API for hint generation');
+    const apiStartTime = Date.now();
+    
+    const response = await ai.models.generateContent({
+      model: proModelName,
+      contents: prompt,
+      config: {
+        thinkingConfig: {
+          thinkingLevel: ThinkingLevel.LOW
+        },
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            hint: {
+              type: Type.STRING,
+              maxLength: 150
+            }
+          },
+          required: ["hint"]
+        }
+      }
+    });
+
+    const apiDuration = Date.now() - apiStartTime;
+    console.log('[GeminiService] Hint response received in', `${apiDuration}ms`);
+    
+    const text = response.text;
+    if (!text) {
+      console.error('[GeminiService] No text in response');
+      throw new Error("No hint received from Gemini");
+    }
+    
+    const cleanedText = cleanJsonText(text);
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error("[GeminiService] JSON Parse failed on hint response:", text);
+      throw parseError;
+    }
+    
+    const hintText = parsed.hint?.trim() || '';
+    if (!hintText) {
+      console.error('[GeminiService] No hint text in parsed response');
+      throw new Error("No hint received from Gemini");
+    }
+    
+    console.log('[GeminiService] Hint generated successfully, length:', hintText.length);
+    return hintText;
+  } catch (err) {
+    console.error("Error requesting hint:", err);
     throw err;
   }
 };
