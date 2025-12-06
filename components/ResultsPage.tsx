@@ -47,7 +47,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ result, onLearnClick, isGener
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 pb-32 space-y-8">
       {/* Overall Performance and Summary Section - 33-66 split */}
-      <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-6 shadow-sm">
+      <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-white/50 dark:border-slate-800/50 rounded-lg p-6 shadow-sm">
         <div className={`grid gap-6 ${result.summary ? 'grid-cols-3' : 'grid-cols-1'}`}>
           {/* Overall Performance - 33% */}
           <div className={result.summary ? 'col-span-1' : ''}>
@@ -88,7 +88,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ result, onLearnClick, isGener
 
       {/* Areas for Improvement and Strengths Section - 50-50 split */}
       {(result.weakAreas.length > 0 || result.strengths.length > 0) && (
-        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-6 shadow-sm">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-white/50 dark:border-slate-800/50 rounded-lg p-6 shadow-sm">
           <div className={`grid gap-6 ${result.weakAreas.length > 0 && result.strengths.length > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {/* Areas for Improvement - 50% */}
             {result.weakAreas.length > 0 && (
@@ -164,7 +164,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ result, onLearnClick, isGener
 
       {/* General Recommendations Section */}
       {result.recommendations.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-6 shadow-sm">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-white/50 dark:border-slate-800/50 rounded-lg p-6 shadow-sm">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-200 mb-6">Study Recommendations</h2>
           <div className="space-y-4">
             {result.recommendations.map((rec, index) => (
@@ -186,7 +186,7 @@ const ResultsPage: React.FC<ResultsPageProps> = ({ result, onLearnClick, isGener
 
       {/* Floating Bottom Bar */}
       {result.weakAreas.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shadow-lg z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-white/50 dark:border-slate-800/50 shadow-lg z-50">
           <div className="max-w-5xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">

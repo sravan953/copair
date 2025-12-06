@@ -23,7 +23,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ completions, weakAreas, onBac
     }, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen bg-transparent">
       <div className="max-w-5xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="mb-8">
@@ -42,7 +42,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ completions, weakAreas, onBac
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-slate-800">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/50 dark:border-slate-800/50">
             <div className="flex items-center gap-3 mb-2">
               <BookOpen className="text-blue-600 dark:text-blue-400" size={24} />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200">Topics Mastered</h3>
@@ -51,7 +51,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ completions, weakAreas, onBac
             <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">Different concepts practiced</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-slate-800">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/50 dark:border-slate-800/50">
             <div className="flex items-center gap-3 mb-2">
               <Check className="text-green-600 dark:text-green-400" size={24} />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200">Questions Solved</h3>
@@ -60,7 +60,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ completions, weakAreas, onBac
             <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">All test cases passed</p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-slate-800">
+          <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/50 dark:border-slate-800/50">
             <div className="flex items-center gap-3 mb-2">
               <TrendingUp className="text-purple-600 dark:text-purple-400" size={24} />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200">Progress</h3>
@@ -71,7 +71,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ completions, weakAreas, onBac
         </div>
 
         {/* Topics Learned */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-8 shadow-lg border border-gray-200 dark:border-slate-800 mb-8">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl p-8 shadow-lg border border-white/50 dark:border-slate-800/50 mb-8">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-6 flex items-center gap-2">
             <BookOpen size={24} className="text-blue-600 dark:text-blue-400" />
             Topics You've Mastered
@@ -80,7 +80,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ completions, weakAreas, onBac
             {uniqueTopics.map((topic, index) => (
               <div
                 key={index}
-                className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-4 py-3"
+                className="flex items-center gap-2 bg-green-50/50 dark:bg-green-900/20 border border-green-200/50 dark:border-green-800/50 rounded-lg px-4 py-3"
               >
                 <Check size={18} className="text-green-600 dark:text-green-400 flex-shrink-0" />
                 <span className="text-gray-900 dark:text-slate-200 font-medium">{topic}</span>
@@ -90,7 +90,7 @@ const SummaryPage: React.FC<SummaryPageProps> = ({ completions, weakAreas, onBac
         </div>
 
         {/* Learning Journey */}
-        <div className="bg-white dark:bg-slate-900 rounded-xl p-8 shadow-lg border border-gray-200 dark:border-slate-800">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-xl p-8 shadow-lg border border-white/50 dark:border-slate-800/50">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-6 flex items-center gap-2">
             <Trophy size={24} className="text-yellow-600 dark:text-yellow-400" />
             Your Learning Journey

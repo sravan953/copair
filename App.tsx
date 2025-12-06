@@ -4,6 +4,8 @@ import { AnalysisResult, LearningQuestion, QuestionCompletion } from './types';
 import ResultsPage from './components/ResultsPage';
 import LearnPage from './components/LearnPage';
 import SummaryPage from './components/SummaryPage';
+import LandingPage from './components/LandingPage';
+import Background from './components/Background';
 import { ArrowLeft } from 'lucide-react';
 
 interface Question {
@@ -200,7 +202,7 @@ const App: React.FC = () => {
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [view, setView] = useState<'quiz' | 'results' | 'learn' | 'summary'>('quiz');
+  const [view, setView] = useState<'landing' | 'quiz' | 'results' | 'learn' | 'summary'>('landing');
   const [questionCompletions, setQuestionCompletions] = useState<QuestionCompletion[]>([]);
   const [learningQuestions, setLearningQuestions] = useState<LearningQuestion[]>([]);
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
@@ -337,10 +339,21 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  if (view === 'landing') {
+    return (
+      <div className="relative min-h-screen w-full font-sans text-gray-900 dark:text-slate-200">
+        <Background />
+        <LandingPage onStart={() => setView('quiz')} />
+      </div>
+    );
+  }
+
   return (
-    <div className="h-screen w-full bg-gray-50 dark:bg-slate-950 flex flex-col overflow-hidden">
+    <div className="h-screen w-full flex flex-col overflow-hidden relative font-sans text-gray-900 dark:text-slate-200">
+      <Background />
+      
       {/* Header */}
-      <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 py-4 flex-shrink-0">
+      <header className="w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-white/20 dark:border-slate-800/50 px-6 py-4 flex-shrink-0 relative z-20 shadow-sm">
         <div className="flex items-center gap-3">
           {(view === 'learn' || view === 'results' || view === 'summary') && (
             <button
@@ -353,15 +366,15 @@ const App: React.FC = () => {
                   setView('quiz');
                 }
               }}
-              className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-gray-100/50 dark:hover:bg-slate-800/50 rounded-lg transition-colors"
               aria-label="Go back"
             >
               <ArrowLeft size={20} className="text-gray-700 dark:text-slate-300" />
             </button>
           )}
           <h1 
-            onClick={() => setView('quiz')}
-            className="text-2xl font-semibold text-gray-900 dark:text-slate-200 cursor-pointer hover:text-gray-700 dark:hover:text-slate-300 transition-colors"
+            onClick={() => setView('landing')}
+            className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-purple-800 to-gray-900 dark:from-white dark:via-purple-200 dark:to-white cursor-pointer hover:opacity-80 transition-opacity"
           >
             CoPair
           </h1>
@@ -369,7 +382,7 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content - Scrollable */}
-      <main className="flex-1 w-full overflow-y-auto">
+      <main className="flex-1 w-full overflow-y-auto relative z-10">
         {view === 'learn' ? (
           <LearnPage
             questions={learningQuestions}
@@ -421,11 +434,11 @@ const App: React.FC = () => {
           {questions.map((q, index) => (
             <div
               key={index}
-              className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow"
+              className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-white/50 dark:border-slate-800/50 rounded-lg p-6 shadow-sm hover:shadow-md transition-all"
             >
               {/* Topic Badge */}
               <div className="mb-3">
-                <span className="inline-block px-3 py-1 text-xs font-medium text-gray-600 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 rounded-full">
+                <span className="inline-block px-3 py-1 text-xs font-medium text-gray-600 dark:text-slate-400 bg-gray-100/50 dark:bg-slate-800/50 rounded-full border border-gray-200/50 dark:border-slate-700/50">
                   {q.topic}
                 </span>
               </div>

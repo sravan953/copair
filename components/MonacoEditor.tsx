@@ -141,11 +141,11 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   }, []);
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-[#1e1e1e] border-r border-gray-200 dark:border-slate-800">
+    <div className="h-full flex flex-col bg-white/95 dark:bg-[#1e1e1e]/95 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-800/50">
       {/* Toolbar */}
-      <div className="h-12 bg-gray-100 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 flex items-center px-4 flex-shrink-0">
+      <div className="h-12 bg-gray-100/90 dark:bg-slate-900/90 border-b border-gray-200/50 dark:border-slate-800/50 flex items-center px-4 flex-shrink-0">
         <div className="flex items-center gap-2 flex-1">
-          <div className="text-xs font-mono text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-gray-200 dark:border-slate-700">Python 3.11</div>
+          <div className="text-xs font-mono text-gray-600 dark:text-slate-400 bg-white/50 dark:bg-slate-800/50 px-2 py-1 rounded border border-gray-200/50 dark:border-slate-700/50">Python 3.11</div>
         </div>
         <div className="flex-1 flex justify-center">
           {timerDisplay && (

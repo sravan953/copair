@@ -277,10 +277,10 @@ const LearnPage: React.FC<LearnPageProps> = ({
   
   if (isLoading || (!hasQuestions && !isGeneratingCurrent)) {
     return (
-      <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950">
+      <div className="h-full flex flex-col bg-transparent">
         {/* Loading Banner */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-2xl px-6">
+          <div className="text-center max-w-2xl px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl p-8 shadow-sm">
             <div className="mb-8">
               <div className="w-16 h-16 border-4 border-gray-300 dark:border-slate-700 border-t-gray-900 dark:border-t-slate-200 rounded-full animate-spin mx-auto mb-6"></div>
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-200 mb-4">
@@ -300,10 +300,10 @@ const LearnPage: React.FC<LearnPageProps> = ({
   // Show loading if current question is being generated
   if (isGeneratingCurrent || !currentQuestion) {
     return (
-      <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950">
+      <div className="h-full flex flex-col bg-transparent">
         {/* Loading Banner */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center max-w-2xl px-6">
+          <div className="text-center max-w-2xl px-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl p-8 shadow-sm">
             <div className="mb-8">
               <div className="w-16 h-16 border-4 border-gray-300 dark:border-slate-700 border-t-gray-900 dark:border-t-slate-200 rounded-full animate-spin mx-auto mb-6"></div>
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-200 mb-4">
@@ -320,11 +320,11 @@ const LearnPage: React.FC<LearnPageProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950">
+    <div className="h-full flex flex-col bg-transparent">
       {/* Main Content - 3 Columns */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Column - Question */}
-        <div className="w-1/3 flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 overflow-hidden">
+        <div className="w-1/3 flex flex-col bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-r border-gray-200/50 dark:border-slate-800/50 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div className="mb-6">
               <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">
@@ -430,7 +430,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
 
         {/* Right Column - Output */}
         {isOutputCollapsed ? (
-          <div className="w-8 flex flex-col bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 overflow-hidden cursor-pointer group hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+          <div className="w-8 flex flex-col bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-l border-gray-200/50 dark:border-slate-800/50 overflow-hidden cursor-pointer group hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors"
                onClick={() => setIsOutputCollapsed(false)}
                title="Expand Output">
             <div className="flex-1 flex items-center justify-center">
@@ -438,12 +438,12 @@ const LearnPage: React.FC<LearnPageProps> = ({
             </div>
           </div>
         ) : (
-          <div className="w-1/3 flex flex-col bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 overflow-hidden min-w-0">
-            <div className="h-12 bg-gray-100 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-4 flex-shrink-0">
+          <div className="w-1/3 flex flex-col bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-l border-gray-200/50 dark:border-slate-800/50 overflow-hidden min-w-0">
+            <div className="h-12 bg-gray-100/90 dark:bg-slate-800/90 border-b border-gray-200/50 dark:border-slate-700/50 flex items-center justify-between px-4 flex-shrink-0">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-200">Output</h3>
               <button
                 onClick={() => setIsOutputCollapsed(true)}
-                className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded transition-colors"
+                className="p-1 hover:bg-gray-200/50 dark:hover:bg-slate-700/50 rounded transition-colors"
                 title="Collapse Output"
                 aria-label="Collapse Output"
               >
