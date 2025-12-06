@@ -56,13 +56,19 @@ export interface AnalysisResult {
 
 export interface LearningQuestion {
   topic: string;
+  title: string;
   question: string;
   description: string;
-  examples: {
+  example1: {
     input: string;
     output: string;
-    explanation?: string;
-  }[];
+    outputExplanation: string;
+  };
+  example2: {
+    input: string;
+    output: string;
+    outputExplanation: string;
+  };
   starterCode: string;
-  hints?: string[];
+  answer: string;
 }

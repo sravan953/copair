@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { analyzeWeakAreas, QuizQuestion, generateLearningQuestions } from './services/geminiService';
+import { analyzeWeakAreas, QuizQuestion, generateSingleLearningQuestion } from './services/geminiService';
 import { AnalysisResult, LearningQuestion } from './types';
 import ResultsPage from './components/ResultsPage';
 import LearnPage from './components/LearnPage';
@@ -201,7 +201,9 @@ const App: React.FC = () => {
   const [view, setView] = useState<'quiz' | 'results' | 'learn'>('quiz');
   const [learningQuestions, setLearningQuestions] = useState<LearningQuestion[]>([]);
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+  const [generatingQuestionIndex, setGeneratingQuestionIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [weakAreasForLearning, setWeakAreasForLearning] = useState<AnalysisResult['weakAreas'] | null>(null);
 
   useEffect(() => {
     console.log('[App] View changed to:', view);
@@ -252,6 +254,12 @@ const App: React.FC = () => {
 
     console.log('[App] Navigating to learn view, weak areas count:', analysisResult.weakAreas.length);
     
+    // Store weak areas for on-demand generation
+    setWeakAreasForLearning(analysisResult.weakAreas);
+    
+    // Initialize with empty array (will be populated with first question)
+    setLearningQuestions([]);
+    
     // Navigate to learn view immediately
     setView('learn');
     setError(null);
@@ -259,26 +267,65 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
-      console.log('[App] Starting question generation for', analysisResult.weakAreas.length, 'weak areas');
+      console.log('[App] Starting first question generation');
       const startTime = Date.now();
       
-      const questions = await generateLearningQuestions(analysisResult.weakAreas);
+      // Generate only the first question
+      const firstQuestion = await generateSingleLearningQuestion(analysisResult.weakAreas[0]);
       
       const duration = Date.now() - startTime;
-      console.log('[App] Questions generated successfully');
-      console.log('[App]   Count:', questions.length);
+      console.log('[App] First question generated successfully');
       console.log('[App]   Duration:', `${duration}ms`);
-      console.log('[App]   Topics:', questions.map(q => q.topic).join(', '));
+      console.log('[App]   Topic:', firstQuestion.topic);
       
-      setLearningQuestions(questions);
+      setLearningQuestions([firstQuestion]);
     } catch (err) {
-      console.error("[App] Error generating learning questions:", err);
-      setError("Failed to generate learning questions. Please try again.");
+      console.error("[App] Error generating first learning question:", err);
+      setError("Failed to generate learning question. Please try again.");
       // Navigate back to results on error
       setView('results');
     } finally {
       setIsGeneratingQuestions(false);
-      console.log('[App] Question generation completed, isLoading set to false');
+      console.log('[App] First question generation completed');
+    }
+  };
+
+  const handleGenerateQuestion = async (index: number) => {
+    if (!weakAreasForLearning || index >= weakAreasForLearning.length) {
+      console.warn('[App] Cannot generate question: invalid index or no weak areas');
+      return;
+    }
+
+    // Check if question already exists
+    if (learningQuestions[index]) {
+      console.log('[App] Question already exists at index', index);
+      return;
+    }
+
+    console.log('[App] Generating question for index:', index);
+    setGeneratingQuestionIndex(index);
+
+    try {
+      const question = await generateSingleLearningQuestion(weakAreasForLearning[index]);
+      
+      // Update the questions array at the specific index
+      setLearningQuestions(prev => {
+        const updated = [...prev];
+        // Ensure array is large enough by padding with undefined
+        while (updated.length <= index) {
+          updated.push(undefined as any);
+        }
+        updated[index] = question;
+        // Filter out undefined to keep array clean, but preserve indices
+        return updated;
+      });
+      
+      console.log('[App] Question generated successfully for index:', index);
+    } catch (err) {
+      console.error("[App] Error generating question:", err);
+      setError(`Failed to generate question ${index + 1}. Please try again.`);
+    } finally {
+      setGeneratingQuestionIndex(null);
     }
   };
 
@@ -304,7 +351,10 @@ const App: React.FC = () => {
       <main className="flex-1 w-full overflow-y-auto">
         {view === 'learn' ? (
           <LearnPage 
-            questions={learningQuestions} 
+            questions={learningQuestions}
+            totalQuestions={weakAreasForLearning?.length || 0}
+            onGenerateQuestion={handleGenerateQuestion}
+            generatingQuestionIndex={generatingQuestionIndex}
             onBack={() => {
               setView('results');
               window.scrollTo({ top: 0, behavior: 'smooth' });

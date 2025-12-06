@@ -7,7 +7,10 @@ import { ExecutionResult } from '../types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface LearnPageProps {
-  questions: LearningQuestion[];
+  questions: (LearningQuestion | undefined)[];
+  totalQuestions: number;
+  onGenerateQuestion: (index: number) => Promise<void>;
+  generatingQuestionIndex: number | null;
   onBack: () => void;
   isLoading?: boolean;
 }
@@ -25,25 +28,36 @@ const LOADING_MESSAGES = [
   "Loading up on algorithmic goodness... 🚀"
 ] as const;
 
-const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = false }) => {
+const LearnPage: React.FC<LearnPageProps> = ({ 
+  questions, 
+  totalQuestions,
+  onGenerateQuestion,
+  generatingQuestionIndex,
+  onBack, 
+  isLoading = false 
+}) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [code, setCode] = useState('');
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
 
+  const isGeneratingCurrent = generatingQuestionIndex === currentIndex;
+
   // Only log when props actually change, not on every render
   useEffect(() => {
     console.log('[LearnPage] Component mounted or props changed');
     console.log('[LearnPage]   isLoading:', isLoading);
-    console.log('[LearnPage]   questionsCount:', questions.length);
-    if (questions.length > 0) {
-      console.log('[LearnPage]   questions topics:', questions.map(q => q.topic).join(', '));
+    console.log('[LearnPage]   totalQuestions:', totalQuestions);
+    const definedQuestions = questions.filter(q => q !== undefined);
+    console.log('[LearnPage]   definedQuestionsCount:', definedQuestions.length);
+    if (definedQuestions.length > 0) {
+      console.log('[LearnPage]   questions topics:', definedQuestions.map(q => q!.topic).join(', '));
     }
-  }, [isLoading, questions.length]);
+  }, [isLoading, totalQuestions, questions]);
 
   useEffect(() => {
-    if (isLoading) {
+    if (isLoading || isGeneratingCurrent) {
       console.log('[LearnPage] Loading started, setting up message rotation');
       const interval = setInterval(() => {
         setLoadingMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
@@ -56,9 +70,17 @@ const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = fa
       // Reset message index when loading stops
       setLoadingMessageIndex(0);
     }
-  }, [isLoading]);
+  }, [isLoading, isGeneratingCurrent]);
 
   const currentQuestion = questions[currentIndex];
+  
+  // Generate question on demand when navigating to a missing question
+  useEffect(() => {
+    if (!isLoading && currentQuestion === undefined && currentIndex < totalQuestions) {
+      console.log('[LearnPage] Question missing at index', currentIndex, ', generating...');
+      onGenerateQuestion(currentIndex);
+    }
+  }, [currentIndex, currentQuestion, isLoading, totalQuestions, onGenerateQuestion]);
 
   // Removed this useEffect as it was causing excessive logging
   // The main props change logging is handled above
@@ -71,6 +93,10 @@ const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = fa
       console.log('[LearnPage]   Question:', currentQuestion.question);
       console.log('[LearnPage]   Starter code length:', currentQuestion.starterCode.length);
       setCode(currentQuestion.starterCode);
+      setExecutionResult(null);
+    } else {
+      // Clear code when question is not available yet
+      setCode('');
       setExecutionResult(null);
     }
   }, [currentQuestion, currentIndex]);
@@ -133,7 +159,9 @@ const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = fa
     }
   };
 
-  if (isLoading || questions.length === 0) {
+  const hasQuestions = questions.some(q => q !== undefined);
+  
+  if (isLoading || (!hasQuestions && !isGeneratingCurrent)) {
     return (
       <div className="h-full flex flex-col bg-gray-50">
         {/* Header */}
@@ -169,15 +197,47 @@ const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = fa
     );
   }
 
+  // Show loading if current question is being generated
+  if (isGeneratingCurrent || !currentQuestion) {
+    return (
+      <div className="h-full flex flex-col bg-gray-50">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Practice Mode</h1>
+          </div>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Back to Results
+          </button>
+        </div>
+
+        {/* Loading Banner */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-2xl px-6">
+            <div className="mb-8">
+              <div className="w-16 h-16 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-6"></div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+                {LOADING_MESSAGES[loadingMessageIndex]}
+              </h2>
+              <p className="text-gray-600">
+                Generating question {currentIndex + 1} of {totalQuestions}...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Practice: {currentQuestion.topic}</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Question {currentIndex + 1} of {questions.length}
-          </p>
+          <h1 className="text-xl font-semibold text-gray-900">Practice Mode</h1>
         </div>
         <button
           onClick={onBack}
@@ -193,8 +253,10 @@ const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = fa
         <div className="w-1/3 flex flex-col bg-slate-900 border-r border-slate-800 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-100 mb-2">{currentQuestion.question}</h2>
-              <span className="inline-block px-3 py-1 text-xs font-medium text-slate-300 bg-slate-800 rounded-full">
+              <p className="text-sm text-slate-400 mb-2">
+                Question {currentIndex + 1} of {totalQuestions}
+              </p>
+              <span className="inline-block px-3 py-1 text-xs font-medium text-slate-300 bg-slate-800 rounded-full mb-4">
                 {currentQuestion.topic}
               </span>
             </div>
@@ -203,34 +265,27 @@ const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = fa
               <ReactMarkdown>{currentQuestion.description}</ReactMarkdown>
             </div>
 
-            {currentQuestion.examples.length > 0 && (
-              <div className="space-y-4 mb-6">
-                <h3 className="text-lg font-semibold text-slate-200">Examples:</h3>
-                {currentQuestion.examples.map((ex, idx) => (
-                  <div key={idx} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                    <p className="text-sm font-semibold text-slate-300 mb-2">Example {idx + 1}:</p>
-                    <div className="space-y-1 font-mono text-sm">
-                      <p><span className="text-slate-500">Input:</span> <span className="text-slate-200">{ex.input}</span></p>
-                      <p><span className="text-slate-500">Output:</span> <span className="text-slate-200">{ex.output}</span></p>
-                      {ex.explanation && (
-                        <p className="text-slate-400 text-xs mt-2">{ex.explanation}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+            <div className="space-y-4 mb-6">
+              <h3 className="text-lg font-semibold text-slate-200">Examples:</h3>
+              
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                <p className="text-sm font-semibold text-slate-300 mb-2">Example 1:</p>
+                <div className="space-y-1 font-mono text-sm">
+                  <p><span className="text-slate-500">Input:</span> <span className="text-slate-200">{currentQuestion.example1.input}</span></p>
+                  <p><span className="text-slate-500">Output:</span> <span className="text-slate-200">{currentQuestion.example1.output}</span></p>
+                  <p className="text-slate-400 text-xs mt-2"><span className="text-slate-500">Explanation:</span> {currentQuestion.example1.outputExplanation}</p>
+                </div>
               </div>
-            )}
 
-            {currentQuestion.hints && currentQuestion.hints.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-slate-200 mb-3">Hints:</h3>
-                <ul className="list-disc list-inside space-y-2 text-sm text-slate-300">
-                  {currentQuestion.hints.map((hint, idx) => (
-                    <li key={idx}>{hint}</li>
-                  ))}
-                </ul>
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                <p className="text-sm font-semibold text-slate-300 mb-2">Example 2:</p>
+                <div className="space-y-1 font-mono text-sm">
+                  <p><span className="text-slate-500">Input:</span> <span className="text-slate-200">{currentQuestion.example2.input}</span></p>
+                  <p><span className="text-slate-500">Output:</span> <span className="text-slate-200">{currentQuestion.example2.output}</span></p>
+                  <p className="text-slate-400 text-xs mt-2"><span className="text-slate-500">Explanation:</span> {currentQuestion.example2.outputExplanation}</p>
+                </div>
               </div>
-            )}
+            </div>
 
             {/* Navigation */}
             <div className="mt-6 flex items-center justify-between pt-6 border-t border-slate-700">
@@ -244,7 +299,7 @@ const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = fa
               </button>
               <button
                 onClick={handleNext}
-                disabled={currentIndex === questions.length - 1}
+                disabled={currentIndex >= totalQuestions - 1}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 rounded-lg transition-colors"
               >
                 Next
@@ -257,6 +312,7 @@ const LearnPage: React.FC<LearnPageProps> = ({ questions, onBack, isLoading = fa
         {/* Middle Column - Code Editor */}
         <div className="w-1/3 flex flex-col">
           <MonacoEditor
+            key={currentIndex}
             code={code}
             onChange={setCode}
             onRun={handleRun}

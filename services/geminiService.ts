@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { Problem, AnalysisResult, LearningQuestion } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -370,6 +370,124 @@ Analyze the user's performance and provide a structured analysis. Calculate the 
   }
 };
 
+export const generateSingleLearningQuestion = async (
+  weakArea: AnalysisResult['weakAreas'][0]
+): Promise<LearningQuestion> => {
+  console.log('[GeminiService] generateSingleLearningQuestion called for topic:', weakArea.topic);
+
+  const prompt = `Generate a practice coding question to help a student learn from their mistakes.
+
+The student struggled with the following topic:
+- Topic: ${weakArea.topic}
+- Incorrect: ${weakArea.incorrectCount} out of ${weakArea.totalQuestions} questions
+- Common mistakes: ${weakArea.commonMistakes.join(', ')}
+- Recommendations: ${weakArea.recommendations.join(', ')}
+
+Generate ONE practice coding question for this topic.
+
+The question should:
+- Be a Python coding problem that teaches the concept they struggled with
+- Be appropriate for interview preparation (like LeetCode style)
+- Include exactly 2 examples with input, output, and output explanations
+- Provide starter code with function signature and required arguments
+- Include the complete solution as the answer
+
+Return only valid JSON. Do not include any additional text, explanations, or markdown formatting outside the JSON structure.`;
+
+  try {
+    console.log('[GeminiService] Calling Gemini API with model:', proModelName);
+    const apiStartTime = Date.now();
+    
+    const response = await ai.models.generateContent({
+      model: proModelName,
+      contents: prompt,
+      config: {
+        thinkingConfig: {
+          thinkingLevel: ThinkingLevel.LOW
+        },
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            question: { type: Type.STRING },
+            description: { type: Type.STRING },
+            example1: {
+              type: Type.OBJECT,
+              properties: {
+                input: { type: Type.STRING },
+                output: { type: Type.STRING },
+                outputExplanation: { type: Type.STRING }
+              },
+              required: ["input", "output", "outputExplanation"]
+            },
+            example2: {
+              type: Type.OBJECT,
+              properties: {
+                input: { type: Type.STRING },
+                output: { type: Type.STRING },
+                outputExplanation: { type: Type.STRING }
+              },
+              required: ["input", "output", "outputExplanation"]
+            },
+            starterCode: { type: Type.STRING },
+            answer: { type: Type.STRING }
+          },
+          required: ["title", "question", "description", "example1", "example2", "starterCode", "answer"]
+        }
+      }
+    });
+
+    const apiDuration = Date.now() - apiStartTime;
+    console.log('[GeminiService] Gemini API response received in', `${apiDuration}ms`);
+    
+    const text = response.text;
+    if (!text) {
+      console.error('[GeminiService] No text in response');
+      throw new Error("No response from Gemini");
+    }
+    
+    console.log('[GeminiService] Response text length:', text.length);
+    
+    const cleanedText = cleanJsonText(text);
+    console.log('[GeminiService] Cleaned text length:', cleanedText.length);
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedText);
+      console.log('[GeminiService] JSON parsed successfully, type:', typeof parsed);
+    } catch (parseError) {
+      console.error("[GeminiService] JSON Parse failed on text:", text);
+      throw parseError;
+    }
+    
+    const question: LearningQuestion = {
+      topic: weakArea.topic,
+      title: parsed.title || "Practice Question",
+      question: parsed.question || "Solve this problem.",
+      description: parsed.description || "Solve this problem to improve your understanding.",
+      example1: {
+        input: parsed.example1?.input || "",
+        output: parsed.example1?.output || "",
+        outputExplanation: parsed.example1?.outputExplanation || ""
+      },
+      example2: {
+        input: parsed.example2?.input || "",
+        output: parsed.example2?.output || "",
+        outputExplanation: parsed.example2?.outputExplanation || ""
+      },
+      starterCode: parsed.starterCode || "def solution():\n    pass",
+      answer: parsed.answer || ""
+    };
+
+    console.log('[GeminiService] Generated single learning question successfully');
+    return question;
+  } catch (err) {
+    console.error("Error generating learning question:", err);
+    throw err;
+  }
+};
+
 export const generateLearningQuestions = async (
   weakAreas: AnalysisResult['weakAreas']
 ): Promise<LearningQuestion[]> => {
@@ -385,7 +503,7 @@ export const generateLearningQuestions = async (
     console.log(`  ${idx + 1}. ${area.topic} - ${area.incorrectCount}/${area.totalQuestions} incorrect`);
   });
 
-  const prompt = `You are an educational AI creating practice coding questions to help a student learn from their mistakes.
+  const prompt = `Generate practice coding questions to help a student learn from their mistakes.
 
 The student struggled with the following topics:
 ${weakAreas.map((area, idx) => `
@@ -395,14 +513,31 @@ ${idx + 1}. ${area.topic}
    - Recommendations: ${area.recommendations.join(', ')}
 `).join('\n')}
 
-Generate ONE practice coding question per weak area. Each question should:
+Generate ONE practice coding question per weak area.
+
+The output must be a JSON array. Each array element must be a JSON object containing ONLY these fields:
+- title: A brief title for the question (string, e.g., "Two Sum")
+- question: A descriptive question statement that clearly explains what the problem asks (string)
+- description: A detailed problem description in Markdown (string)
+- example1: An object with:
+  - input: Example input (string)
+  - output: Example output (string)
+  - outputExplanation: Explanation of why this output is correct (string)
+- example2: An object with:
+  - input: Example input (string)
+  - output: Example output (string)
+  - outputExplanation: Explanation of why this output is correct (string)
+- starterCode: Python starter code template with function definition and all required function arguments (string)
+- answer: The complete solution code (string)
+
+Each question should:
 - Be a Python coding problem that teaches the concept they struggled with
 - Be appropriate for interview preparation (like LeetCode style)
-- Include clear examples with input/output
-- Provide starter code with function signature
-- Be educational and help them understand the concept better
+- Include exactly 2 examples with input, output, and output explanations
+- Provide starter code with function signature and required arguments
+- Include the complete solution as the answer
 
-Generate questions that directly address the common mistakes and help reinforce the correct understanding.`;
+Return only valid JSON. Do not include any additional text, explanations, or markdown formatting outside the JSON structure.`;
 
   try {
     console.log('[GeminiService] Calling Gemini API with model:', proModelName);
@@ -412,32 +547,40 @@ Generate questions that directly address the common mistakes and help reinforce 
       model: proModelName,
       contents: prompt,
       config: {
+        thinkingConfig: {
+          thinkingLevel: ThinkingLevel.LOW
+        },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
             properties: {
-              topic: { type: Type.STRING },
+              title: { type: Type.STRING },
               question: { type: Type.STRING },
               description: { type: Type.STRING },
-              examples: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    input: { type: Type.STRING },
-                    output: { type: Type.STRING },
-                    explanation: { type: Type.STRING }
-                  }
-                }
+              example1: {
+                type: Type.OBJECT,
+                properties: {
+                  input: { type: Type.STRING },
+                  output: { type: Type.STRING },
+                  outputExplanation: { type: Type.STRING }
+                },
+                required: ["input", "output", "outputExplanation"]
+              },
+              example2: {
+                type: Type.OBJECT,
+                properties: {
+                  input: { type: Type.STRING },
+                  output: { type: Type.STRING },
+                  outputExplanation: { type: Type.STRING }
+                },
+                required: ["input", "output", "outputExplanation"]
               },
               starterCode: { type: Type.STRING },
-              hints: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              }
-            }
+              answer: { type: Type.STRING }
+            },
+            required: ["title", "question", "description", "example1", "example2", "starterCode", "answer"]
           }
         }
       }
@@ -468,24 +611,34 @@ Generate questions that directly address the common mistakes and help reinforce 
     
     // Validate and format learning questions
     const questions: LearningQuestion[] = Array.isArray(parsed) ? parsed.map((q: any, idx: number) => {
+      const topic = weakAreas[idx]?.topic || `Topic ${idx + 1}`;
       console.log(`[GeminiService] Processing question ${idx + 1}:`);
-      console.log(`[GeminiService]   Topic:`, q.topic);
+      console.log(`[GeminiService]   Topic:`, topic);
+      console.log(`[GeminiService]   Title:`, q.title);
+      console.log(`[GeminiService]   Question:`, q.question);
       console.log(`[GeminiService]   Has description:`, !!q.description);
-      console.log(`[GeminiService]   Examples count:`, q.examples?.length || 0);
+      console.log(`[GeminiService]   Has example1:`, !!q.example1);
+      console.log(`[GeminiService]   Has example2:`, !!q.example2);
       console.log(`[GeminiService]   Has starter code:`, !!q.starterCode);
-      console.log(`[GeminiService]   Hints count:`, q.hints?.length || 0);
+      console.log(`[GeminiService]   Has answer:`, !!q.answer);
       
       return {
-      topic: q.topic || weakAreas[idx]?.topic || `Topic ${idx + 1}`,
-      question: q.question || "Practice Question",
+      topic: topic,
+      title: q.title || "Practice Question",
+      question: q.question || "Solve this problem.",
       description: q.description || "Solve this problem to improve your understanding.",
-      examples: Array.isArray(q.examples) ? q.examples.map((ex: any) => ({
-        input: ex.input || "",
-        output: ex.output || "",
-        explanation: ex.explanation
-      })) : [],
+      example1: {
+        input: q.example1?.input || "",
+        output: q.example1?.output || "",
+        outputExplanation: q.example1?.outputExplanation || ""
+      },
+      example2: {
+        input: q.example2?.input || "",
+        output: q.example2?.output || "",
+        outputExplanation: q.example2?.outputExplanation || ""
+      },
       starterCode: q.starterCode || "def solution():\n    pass",
-      hints: Array.isArray(q.hints) ? q.hints : []
+      answer: q.answer || ""
     };
     }) : [];
 
