@@ -12,6 +12,7 @@ interface MonacoEditorProps {
   isLoadingHint: boolean;
   canRequestHint: boolean;
   onRequestHint: () => void;
+  timerDisplay?: string;
 }
 
 declare global {
@@ -22,7 +23,7 @@ declare global {
 }
 
 const MonacoEditor: React.FC<MonacoEditorProps> = ({ 
-  code, onChange, onRun, isRunning, hints, isLoadingHint, canRequestHint, onRequestHint
+  code, onChange, onRun, isRunning, hints, isLoadingHint, canRequestHint, onRequestHint, timerDisplay
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
@@ -142,11 +143,18 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   return (
     <div className="h-full flex flex-col bg-white dark:bg-[#1e1e1e] border-r border-gray-200 dark:border-slate-800">
       {/* Toolbar */}
-      <div className="h-12 bg-gray-100 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-4 flex-shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="h-12 bg-gray-100 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 flex items-center px-4 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-1">
           <div className="text-xs font-mono text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-gray-200 dark:border-slate-700">Python 3.11</div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex-1 flex justify-center">
+          {timerDisplay && (
+            <div className="text-xs font-mono text-gray-600 dark:text-slate-400">
+              {timerDisplay}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-1 justify-end">
           <button 
             onClick={onRun}
             disabled={isRunning}

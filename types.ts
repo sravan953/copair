@@ -92,3 +92,10 @@ export interface Hint {
   text: string;
   timestamp: number;
 }
+
+export interface QuestionCompletion {
+  questionIndex: number;
+  topic: string;
+  completed: boolean;
+  completedAt?: number;
+}

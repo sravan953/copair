@@ -14,6 +14,8 @@ interface LearnPageProps {
   generatingQuestionIndex: number | null;
   onBack: () => void;
   isLoading?: boolean;
+  onQuestionCompleted?: (index: number, topic: string) => void;
+  onNavigateToSummary?: () => void;
 }
 
 const LOADING_MESSAGES = [
@@ -29,13 +31,15 @@ const LOADING_MESSAGES = [
   "Loading up on algorithmic goodness... 🚀"
 ] as const;
 
-const LearnPage: React.FC<LearnPageProps> = ({ 
-  questions, 
+const LearnPage: React.FC<LearnPageProps> = ({
+  questions,
   totalQuestions,
   onGenerateQuestion,
   generatingQuestionIndex,
-  onBack, 
-  isLoading = false 
+  onBack,
+  isLoading = false,
+  onQuestionCompleted,
+  onNavigateToSummary
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [code, setCode] = useState('');
@@ -48,6 +52,10 @@ const LearnPage: React.FC<LearnPageProps> = ({
   const [hintThreshold, setHintThreshold] = useState(1);
   const [isOutputCollapsed, setIsOutputCollapsed] = useState(false);
   const [canRequestHint, setCanRequestHint] = useState(false);
+  const [timerStartTime, setTimerStartTime] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [questionStatuses, setQuestionStatuses] = useState<Map<number, boolean>>(new Map());
 
   const isGeneratingCurrent = generatingQuestionIndex === currentIndex;
 
@@ -105,6 +113,10 @@ const LearnPage: React.FC<LearnPageProps> = ({
       setTryCount(0);
       setHints([]);
       setCanRequestHint(false);
+      // Start timer for new question
+      setTimerStartTime(Date.now());
+      setElapsedSeconds(0);
+      setIsTimerRunning(true);
     } else {
       // Clear code when question is not available yet
       setCode('');
@@ -113,6 +125,10 @@ const LearnPage: React.FC<LearnPageProps> = ({
       setTryCount(0);
       setHints([]);
       setCanRequestHint(false);
+      // Stop timer
+      setIsTimerRunning(false);
+      setTimerStartTime(null);
+      setElapsedSeconds(0);
     }
   }, [currentQuestion, currentIndex]);
 
@@ -124,6 +140,25 @@ const LearnPage: React.FC<LearnPageProps> = ({
       console.error('[LearnPage] Pyodide initialization failed:', err);
     });
   }, []);
+
+  // Timer update effect
+  useEffect(() => {
+    if (!isTimerRunning || !timerStartTime) return;
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - timerStartTime) / 1000);
+      setElapsedSeconds(elapsed);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isTimerRunning, timerStartTime]);
+
+  // Format timer as mm:ss
+  const formatTimer = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleRun = async () => {
     if (!code.trim()) {
@@ -172,6 +207,19 @@ const LearnPage: React.FC<LearnPageProps> = ({
           setTryCount(0);
           setHints([]);
           setCanRequestHint(false);
+          // Stop timer when all tests pass
+          setIsTimerRunning(false);
+
+          // Track completion
+          setQuestionStatuses(prev => {
+            const newMap = new Map(prev);
+            newMap.set(currentIndex, true);
+            return newMap;
+          });
+
+          if (onQuestionCompleted && currentQuestion) {
+            onQuestionCompleted(currentIndex, currentQuestion.topic);
+          }
         } else {
           // Increment try count for failed attempts
           const newTryCount = tryCount + 1;
@@ -213,6 +261,19 @@ const LearnPage: React.FC<LearnPageProps> = ({
   };
 
   const hasQuestions = questions.some(q => q !== undefined);
+
+  const allQuestionsCompleted = () => {
+    if (questions.length < totalQuestions) return false;
+    const definedQuestions = questions.filter(q => q !== undefined);
+    if (definedQuestions.length < totalQuestions) return false;
+
+    for (let i = 0; i < totalQuestions; i++) {
+      if (!questionStatuses.get(i)) return false;
+    }
+    return true;
+  };
+
+  const isAllCompleted = allQuestionsCompleted();
   
   if (isLoading || (!hasQuestions && !isGeneratingCurrent)) {
     return (
@@ -335,6 +396,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
             hints={hints}
             isLoadingHint={isLoadingHint}
             canRequestHint={canRequestHint}
+            timerDisplay={formatTimer(elapsedSeconds)}
             onRequestHint={async () => {
               if (!currentQuestion || isLoadingHint) return;
               
@@ -498,6 +560,31 @@ const LearnPage: React.FC<LearnPageProps> = ({
           </div>
         )}
       </div>
+
+      {/* Floating Done Bar */}
+      {isAllCompleted && onNavigateToSummary && (
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-green-500 to-emerald-600 dark:from-green-600 dark:to-emerald-700 shadow-2xl z-50 border-t border-green-600 dark:border-green-700">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <Check size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">All Questions Completed! 🎉</h3>
+                  <p className="text-sm text-green-100">Great job! View your learning summary.</p>
+                </div>
+              </div>
+              <button
+                onClick={onNavigateToSummary}
+                className="bg-white text-green-600 hover:bg-green-50 dark:hover:bg-green-100 font-semibold px-6 py-2.5 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
+              >
+                View Summary →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

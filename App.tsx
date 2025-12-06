@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { analyzeWeakAreas, QuizQuestion, generateSingleLearningQuestion } from './services/geminiService';
-import { AnalysisResult, LearningQuestion } from './types';
+import { AnalysisResult, LearningQuestion, QuestionCompletion } from './types';
 import ResultsPage from './components/ResultsPage';
 import LearnPage from './components/LearnPage';
+import SummaryPage from './components/SummaryPage';
 import { ArrowLeft } from 'lucide-react';
 
 interface Question {
@@ -199,7 +200,8 @@ const App: React.FC = () => {
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [view, setView] = useState<'quiz' | 'results' | 'learn'>('quiz');
+  const [view, setView] = useState<'quiz' | 'results' | 'learn' | 'summary'>('quiz');
+  const [questionCompletions, setQuestionCompletions] = useState<QuestionCompletion[]>([]);
   const [learningQuestions, setLearningQuestions] = useState<LearningQuestion[]>([]);
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
   const [generatingQuestionIndex, setGeneratingQuestionIndex] = useState<number | null>(null);
@@ -330,15 +332,22 @@ const App: React.FC = () => {
     }
   };
 
+  const handleNavigateToSummary = () => {
+    setView('summary');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="h-screen w-full bg-gray-50 dark:bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 py-4 flex-shrink-0">
         <div className="flex items-center gap-3">
-          {(view === 'learn' || view === 'results') && (
+          {(view === 'learn' || view === 'results' || view === 'summary') && (
             <button
               onClick={() => {
-                if (view === 'learn') {
+                if (view === 'summary') {
+                  setView('learn');
+                } else if (view === 'learn') {
                   setView('results');
                 } else if (view === 'results') {
                   setView('quiz');
@@ -362,7 +371,7 @@ const App: React.FC = () => {
       {/* Main Content - Scrollable */}
       <main className="flex-1 w-full overflow-y-auto">
         {view === 'learn' ? (
-          <LearnPage 
+          <LearnPage
             questions={learningQuestions}
             totalQuestions={weakAreasForLearning?.length || 0}
             onGenerateQuestion={handleGenerateQuestion}
@@ -372,6 +381,26 @@ const App: React.FC = () => {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             isLoading={isGeneratingQuestions}
+            onQuestionCompleted={(index, topic) => {
+              setQuestionCompletions(prev => {
+                const existing = prev.find(q => q.questionIndex === index);
+                if (existing) {
+                  return prev.map(q =>
+                    q.questionIndex === index
+                      ? { ...q, completed: true, completedAt: Date.now() }
+                      : q
+                  );
+                }
+                return [...prev, { questionIndex: index, topic, completed: true, completedAt: Date.now() }];
+              });
+            }}
+            onNavigateToSummary={handleNavigateToSummary}
+          />
+        ) : view === 'summary' ? (
+          <SummaryPage
+            completions={questionCompletions}
+            weakAreas={weakAreasForLearning || []}
+            onBack={() => setView('learn')}
           />
         ) : view === 'results' && analysisResult ? (
           <ResultsPage 
