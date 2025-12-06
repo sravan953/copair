@@ -223,36 +223,180 @@ str(method_name) if method_name else "None"
       console.log(`[Pyodide] Test case ${i + 1}: input="${testCase.input}", expected="${testCase.expectedOutput}"`);
       
       // Extract arguments from test case input
-      // Handle formats like: "s = \"value\"" or "nums = [1,2,3], target = 5"
+      // Handle formats like: "s = \"value\"" or "nums = [1,2,3], target = 5" or "Solution(); result = s.method([1,2], 2)"
       let methodArgs = "";
-      if (testCase.input.includes('=')) {
-        // Extract right-hand side of assignment(s)
-        // Handle multiple assignments separated by commas
-        const assignments = testCase.input.split(',').map(a => a.trim());
-        const args: string[] = [];
-        for (const assignment of assignments) {
-          const match = assignment.match(/=\s*(.+)$/);
-          if (match) {
-            args.push(match[1].trim());
+      const input = testCase.input.trim();
+      
+      // First, try to extract function call arguments from the input
+      // Look for the pattern: methodName(...) or solution.methodName(...)
+      // Handle nested parentheses and brackets properly
+      const findFunctionCallArgs = (str: string): string | null => {
+        // Find the last function call pattern (in case there are multiple)
+        // Match: identifier( or .identifier(
+        const funcPattern = /(?:\.|\b)(\w+)\s*\(/g;
+        let lastMatch: RegExpMatchArray | null = null;
+        let match: RegExpMatchArray | null;
+        
+        while ((match = funcPattern.exec(str)) !== null) {
+          lastMatch = match;
+        }
+        
+        if (!lastMatch) return null;
+        
+        // Find the matching closing parenthesis
+        const startPos = lastMatch.index + lastMatch[0].length - 1; // Position of opening (
+        let depth = 1; // Start at 1 since we're already inside the opening parenthesis
+        let inString = false;
+        let stringChar = '';
+        
+        for (let i = startPos + 1; i < str.length; i++) {
+          const char = str[i];
+          
+          if (!inString && (char === '"' || char === "'")) {
+            inString = true;
+            stringChar = char;
+          } else if (inString && char === stringChar && (i === 0 || str[i - 1] !== '\\')) {
+            inString = false;
+          } else if (!inString) {
+            if (char === '(' || char === '[' || char === '{') {
+              depth++;
+            } else if (char === ')' || char === ']' || char === '}') {
+              if (char === ')') {
+                depth--;
+                if (depth === 0) {
+                  // Found matching closing parenthesis
+                  return str.substring(startPos + 1, i).trim();
+                }
+              } else {
+                depth--; // For ] and }
+              }
+            }
           }
         }
-        methodArgs = args.join(', ');
+        return null;
+      };
+      
+      // Try to extract function call arguments
+      const funcArgs = findFunctionCallArgs(input);
+      if (funcArgs !== null) {
+        methodArgs = funcArgs;
+      } else if (input.includes('=')) {
+        // Fallback: Extract right-hand side of assignment(s)
+        // Handle multiple assignments, but be careful with commas inside brackets
+        const extractArgsFromAssignments = (str: string): string => {
+          const args: string[] = [];
+          let depth = 0;
+          let inString = false;
+          let stringChar = '';
+          let currentArg = '';
+          let afterEquals = false;
+          
+          for (let i = 0; i < str.length; i++) {
+            const char = str[i];
+            
+            if (!inString && (char === '"' || char === "'")) {
+              inString = true;
+              stringChar = char;
+            } else if (inString && char === stringChar && (i === 0 || str[i - 1] !== '\\')) {
+              inString = false;
+            } else if (!inString) {
+              if (char === '(' || char === '[' || char === '{') {
+                depth++;
+              } else if (char === ')' || char === ']' || char === '}') {
+                depth--;
+              }
+            }
+            
+            if (char === '=' && !inString && depth === 0) {
+              afterEquals = true;
+              currentArg = '';
+              continue;
+            }
+            
+            if (afterEquals) {
+              if (char === ',' && depth === 0 && !inString) {
+                if (currentArg.trim()) {
+                  args.push(currentArg.trim());
+                }
+                currentArg = '';
+                afterEquals = false;
+              } else {
+                currentArg += char;
+              }
+            }
+          }
+          
+          if (afterEquals && currentArg.trim()) {
+            args.push(currentArg.trim());
+          }
+          
+          return args.join(', ');
+        };
+        
+        methodArgs = extractArgsFromAssignments(input);
       } else {
-        // Might be direct arguments or a function call
-        // If it's a function call, extract arguments
-        const funcCallMatch = testCase.input.match(/\((.+)\)/);
-        if (funcCallMatch) {
-          methodArgs = funcCallMatch[1];
-        } else {
-          methodArgs = testCase.input;
-        }
+        // Direct arguments or simple value
+        methodArgs = input;
       }
+      
+      // Clean up methodArgs - remove any trailing semicolons or extra whitespace
+      methodArgs = methodArgs.replace(/;\s*$/, '').trim();
 
       // Create test method with assertion
+      // Parse arguments safely using ast.literal_eval to catch syntax errors early
       const testMethod = `
     def test_${i + 1}(self):
         import ast
-        result = self.solution.${methodName}(${methodArgs})
+        input_str = ${JSON.stringify(methodArgs)}
+        try:
+            # Parse arguments safely - handle both single and multiple arguments
+            # First, try to detect if we have multiple arguments by checking for commas outside brackets
+            def has_multiple_args(s):
+                if ',' not in s:
+                    return False
+                depth = 0
+                in_string = False
+                string_char = ''
+                for i, char in enumerate(s):
+                    if not in_string and char in ('"', "'"):
+                        in_string = True
+                        string_char = char
+                    elif in_string and char == string_char and (i == 0 or s[i-1] != '\\\\'):
+                        in_string = False
+                    elif not in_string:
+                        if char in ('(', '[', '{'):
+                            depth += 1
+                        elif char in (')', ']', '}'):
+                            depth -= 1
+                        elif char == ',' and depth == 0:
+                            return True
+                return False
+            
+            # Try parsing as tuple if multiple args detected, otherwise as single value
+            if has_multiple_args(input_str):
+                try:
+                    parsed_args = ast.literal_eval(f"({input_str})")
+                    if isinstance(parsed_args, tuple):
+                        if len(parsed_args) == 1:
+                            result = self.solution.${methodName}(parsed_args[0])
+                        else:
+                            result = self.solution.${methodName}(*parsed_args)
+                    else:
+                        result = self.solution.${methodName}(parsed_args)
+                except (SyntaxError, ValueError):
+                    # If tuple parsing fails, try as single value
+                    parsed_args = ast.literal_eval(input_str)
+                    result = self.solution.${methodName}(parsed_args)
+            else:
+                parsed_args = ast.literal_eval(input_str)
+                result = self.solution.${methodName}(parsed_args)
+        except SyntaxError as e:
+            raise SyntaxError(f"Invalid syntax in test case input '{input_str}': {str(e)}. Please check for mismatched brackets, parentheses, or quotes.")
+        except ValueError as e:
+            raise ValueError(f"Invalid value in test case input '{input_str}': {str(e)}")
+        except Exception as e:
+            raise Exception(f"Error executing test case with input '{input_str}': {str(e)}")
+        
         expected_str = ${JSON.stringify(testCase.expectedOutput)}
         expected = ast.literal_eval(expected_str.strip())
         # Store result for retrieval
