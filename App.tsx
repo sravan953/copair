@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { analyzeWeakAreas, QuizQuestion } from './services/geminiService';
+import { AnalysisResult } from './types';
+import ResultsPage from './components/ResultsPage';
 
 interface Question {
   topic: string;
@@ -7,7 +10,7 @@ interface Question {
   answer: string;
 }
 
-const questions: Question[] = [
+const questions: QuizQuestion[] = [
   {
     "topic": "Arrays & Hashing",
     "question": "Which characteristic of a Hash Map allows it to solve the 'Two Sum' problem in O(n) time?",
@@ -192,6 +195,10 @@ const questions: Question[] = [
 
 const App: React.FC = () => {
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [view, setView] = useState<'quiz' | 'results'>('quiz');
+  const [error, setError] = useState<string | null>(null);
 
   const handleAnswerChange = (questionIndex: number, optionText: string) => {
     setAnswers(prev => ({
@@ -200,22 +207,59 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Answers:', answers);
+    
+    // Check if at least one question is answered
+    const answeredCount = Object.keys(answers).length;
+    if (answeredCount === 0) {
+      setError("Please answer at least one question before submitting.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setError(null);
+
+    try {
+      const analysis = await analyzeWeakAreas(questions, answers);
+      setAnalysisResult(analysis);
+      setView('results');
+      // Scroll to top to show results
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error("Error analyzing results:", err);
+      setError("Failed to analyze your results. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   return (
     <div className="h-screen w-full bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="w-full bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-        <h1 className="text-2xl font-semibold text-gray-900">CoPair</h1>
+        <h1 
+          className="text-2xl font-semibold text-gray-900 cursor-pointer hover:text-gray-700 transition-colors"
+          onClick={() => setView('quiz')}
+        >
+          CoPair
+        </h1>
       </header>
 
       {/* Main Content - Scrollable */}
       <main className="flex-1 w-full overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-8">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        {view === 'results' && analysisResult ? (
+          <ResultsPage result={analysisResult} />
+        ) : (
+          <div className="max-w-5xl mx-auto px-6 py-8">
+            {/* Error Message */}
+            {error && (
+              <div className="mb-8 bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-800">{error}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-8">
           {questions.map((q, index) => (
             <div
               key={index}
@@ -270,13 +314,25 @@ const App: React.FC = () => {
           <div className="pt-4 pb-8">
             <button
               type="submit"
-              className="w-full max-w-md mx-auto block bg-gray-900 hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-lg transition-colors shadow-sm hover:shadow-md"
+              disabled={isAnalyzing}
+              className="w-full max-w-md mx-auto block bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-3 px-6 rounded-lg transition-colors shadow-sm hover:shadow-md"
             >
-              Submit
+              {isAnalyzing ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Analyzing...
+                </span>
+              ) : (
+                'Submit'
+              )}
             </button>
+            </div>
+            </form>
           </div>
-        </form>
-        </div>
+        )}
       </main>
     </div>
   );
