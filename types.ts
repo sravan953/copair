@@ -53,3 +53,16 @@ export interface AnalysisResult {
   }[];
   summary: string;
 }
+
+export interface LearningQuestion {
+  topic: string;
+  question: string;
+  description: string;
+  examples: {
+    input: string;
+    output: string;
+    explanation?: string;
+  }[];
+  starterCode: string;
+  hints?: string[];
+}

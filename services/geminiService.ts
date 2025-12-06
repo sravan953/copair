@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Problem, AnalysisResult } from "../types";
+import { Problem, AnalysisResult, LearningQuestion } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -196,6 +196,24 @@ export const analyzeWeakAreas = async (
   const totalCount = answeredQuestions.length;
   const percentage = Math.round((correctCount / totalCount) * 100);
 
+  // Calculate actual counts per topic from the quiz data
+  const topicStats = new Map<string, { total: number; incorrect: number }>();
+  answeredQuestions.forEach(item => {
+    const topic = item.question.topic;
+    if (!topicStats.has(topic)) {
+      topicStats.set(topic, { total: 0, incorrect: 0 });
+    }
+    const stats = topicStats.get(topic)!;
+    stats.total++;
+    if (!item.isCorrect) {
+      stats.incorrect++;
+    }
+  });
+
+  console.log('[GeminiService] Calculated topic stats:', Array.from(topicStats.entries()).map(([topic, stats]) => 
+    `${topic}: ${stats.incorrect}/${stats.total} incorrect`
+  ));
+
   // Build the prompt with structured data
   const quizData = answeredQuestions.map((item, idx) => {
     const q = item.question;
@@ -307,19 +325,36 @@ Analyze the user's performance and provide a structured analysis. Calculate the 
         total: parsed.overallScore?.total ?? totalCount,
         percentage: parsed.overallScore?.percentage ?? percentage
       },
-      weakAreas: Array.isArray(parsed.weakAreas) ? parsed.weakAreas.map((area: any) => ({
-        topic: area.topic || "Unknown",
-        incorrectCount: area.incorrectCount ?? 0,
-        totalQuestions: area.totalQuestions ?? 0,
-        severity: ['high', 'medium', 'low'].includes(area.severity) ? area.severity : 'medium',
-        commonMistakes: Array.isArray(area.commonMistakes) ? area.commonMistakes : [],
-        recommendations: Array.isArray(area.recommendations) ? area.recommendations : []
-      })) : [],
-      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map((strength: any) => ({
-        topic: strength.topic || "Unknown",
-        correctCount: strength.correctCount ?? 0,
-        totalQuestions: strength.totalQuestions ?? 0
-      })) : [],
+      weakAreas: Array.isArray(parsed.weakAreas) ? parsed.weakAreas
+        .map((area: any) => {
+          const topic = area.topic || "Unknown";
+          const stats = topicStats.get(topic) || { total: 0, incorrect: 0 };
+          
+          return {
+            topic,
+            incorrectCount: stats.incorrect, // Use calculated value, not Gemini's
+            totalQuestions: stats.total, // Use calculated value, not Gemini's
+            severity: ['high', 'medium', 'low'].includes(area.severity) ? area.severity : 'medium',
+            commonMistakes: Array.isArray(area.commonMistakes) ? area.commonMistakes : [],
+            recommendations: Array.isArray(area.recommendations) ? area.recommendations : []
+          };
+        })
+        .filter(area => area.incorrectCount > 0) // Only include topics with incorrect answers
+        : [],
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths
+        .map((strength: any) => {
+          const topic = strength.topic || "Unknown";
+          const stats = topicStats.get(topic) || { total: 0, incorrect: 0 };
+          const correctCount = stats.total - stats.incorrect;
+          
+          return {
+            topic,
+            correctCount, // Use calculated value
+            totalQuestions: stats.total // Use calculated value
+          };
+        })
+        .filter(strength => strength.correctCount > 0 && strength.totalQuestions > 0) // Only include topics with correct answers
+        : [],
       recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations.map((rec: any) => ({
         priority: ['high', 'medium', 'low'].includes(rec.priority) ? rec.priority : 'medium',
         action: rec.action || "",
@@ -331,6 +366,133 @@ Analyze the user's performance and provide a structured analysis. Calculate the 
     return analysisResult;
   } catch (err) {
     console.error("Error analyzing weak areas:", err);
+    throw err;
+  }
+};
+
+export const generateLearningQuestions = async (
+  weakAreas: AnalysisResult['weakAreas']
+): Promise<LearningQuestion[]> => {
+  console.log('[GeminiService] generateLearningQuestions called with', weakAreas.length, 'weak areas');
+  
+  if (weakAreas.length === 0) {
+    console.warn('[GeminiService] No weak areas provided, returning empty array');
+    return [];
+  }
+
+  console.log('[GeminiService] Weak areas details:');
+  weakAreas.forEach((area, idx) => {
+    console.log(`  ${idx + 1}. ${area.topic} - ${area.incorrectCount}/${area.totalQuestions} incorrect`);
+  });
+
+  const prompt = `You are an educational AI creating practice coding questions to help a student learn from their mistakes.
+
+The student struggled with the following topics:
+${weakAreas.map((area, idx) => `
+${idx + 1}. ${area.topic}
+   - Incorrect: ${area.incorrectCount} out of ${area.totalQuestions} questions
+   - Common mistakes: ${area.commonMistakes.join(', ')}
+   - Recommendations: ${area.recommendations.join(', ')}
+`).join('\n')}
+
+Generate ONE practice coding question per weak area. Each question should:
+- Be a Python coding problem that teaches the concept they struggled with
+- Be appropriate for interview preparation (like LeetCode style)
+- Include clear examples with input/output
+- Provide starter code with function signature
+- Be educational and help them understand the concept better
+
+Generate questions that directly address the common mistakes and help reinforce the correct understanding.`;
+
+  try {
+    console.log('[GeminiService] Calling Gemini API with model:', proModelName);
+    const apiStartTime = Date.now();
+    
+    const response = await ai.models.generateContent({
+      model: proModelName,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              topic: { type: Type.STRING },
+              question: { type: Type.STRING },
+              description: { type: Type.STRING },
+              examples: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    input: { type: Type.STRING },
+                    output: { type: Type.STRING },
+                    explanation: { type: Type.STRING }
+                  }
+                }
+              },
+              starterCode: { type: Type.STRING },
+              hints: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const apiDuration = Date.now() - apiStartTime;
+    console.log('[GeminiService] Gemini API response received in', `${apiDuration}ms`);
+    
+    const text = response.text;
+    if (!text) {
+      console.error('[GeminiService] No text in response');
+      throw new Error("No response from Gemini");
+    }
+    
+    console.log('[GeminiService] Response text length:', text.length);
+    
+    const cleanedText = cleanJsonText(text);
+    console.log('[GeminiService] Cleaned text length:', cleanedText.length);
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedText);
+      console.log('[GeminiService] JSON parsed successfully, type:', Array.isArray(parsed) ? 'array' : typeof parsed);
+    } catch (parseError) {
+      console.error("[GeminiService] JSON Parse failed on text:", text);
+      throw parseError;
+    }
+    
+    // Validate and format learning questions
+    const questions: LearningQuestion[] = Array.isArray(parsed) ? parsed.map((q: any, idx: number) => {
+      console.log(`[GeminiService] Processing question ${idx + 1}:`);
+      console.log(`[GeminiService]   Topic:`, q.topic);
+      console.log(`[GeminiService]   Has description:`, !!q.description);
+      console.log(`[GeminiService]   Examples count:`, q.examples?.length || 0);
+      console.log(`[GeminiService]   Has starter code:`, !!q.starterCode);
+      console.log(`[GeminiService]   Hints count:`, q.hints?.length || 0);
+      
+      return {
+      topic: q.topic || weakAreas[idx]?.topic || `Topic ${idx + 1}`,
+      question: q.question || "Practice Question",
+      description: q.description || "Solve this problem to improve your understanding.",
+      examples: Array.isArray(q.examples) ? q.examples.map((ex: any) => ({
+        input: ex.input || "",
+        output: ex.output || "",
+        explanation: ex.explanation
+      })) : [],
+      starterCode: q.starterCode || "def solution():\n    pass",
+      hints: Array.isArray(q.hints) ? q.hints : []
+    };
+    }) : [];
+
+    console.log('[GeminiService] Generated', questions.length, 'learning questions successfully');
+    return questions;
+  } catch (err) {
+    console.error("Error generating learning questions:", err);
     throw err;
   }
 };

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { analyzeWeakAreas, QuizQuestion } from './services/geminiService';
-import { AnalysisResult } from './types';
+import React, { useState, useEffect } from 'react';
+import { analyzeWeakAreas, QuizQuestion, generateLearningQuestions } from './services/geminiService';
+import { AnalysisResult, LearningQuestion } from './types';
 import ResultsPage from './components/ResultsPage';
+import LearnPage from './components/LearnPage';
 
 interface Question {
   topic: string;
@@ -197,8 +198,14 @@ const App: React.FC = () => {
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [view, setView] = useState<'quiz' | 'results'>('quiz');
+  const [view, setView] = useState<'quiz' | 'results' | 'learn'>('quiz');
+  const [learningQuestions, setLearningQuestions] = useState<LearningQuestion[]>([]);
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    console.log('[App] View changed to:', view);
+  }, [view]);
 
   const handleAnswerChange = (questionIndex: number, optionText: string) => {
     setAnswers(prev => ({
@@ -234,13 +241,60 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLearnClick = async () => {
+    console.log('[App] handleLearnClick called');
+    
+    if (!analysisResult || analysisResult.weakAreas.length === 0) {
+      console.warn('[App] No weak areas to learn from');
+      setError("No weak areas to learn from.");
+      return;
+    }
+
+    console.log('[App] Navigating to learn view, weak areas count:', analysisResult.weakAreas.length);
+    
+    // Navigate to learn view immediately
+    setView('learn');
+    setError(null);
+    setIsGeneratingQuestions(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      console.log('[App] Starting question generation for', analysisResult.weakAreas.length, 'weak areas');
+      const startTime = Date.now();
+      
+      const questions = await generateLearningQuestions(analysisResult.weakAreas);
+      
+      const duration = Date.now() - startTime;
+      console.log('[App] Questions generated successfully');
+      console.log('[App]   Count:', questions.length);
+      console.log('[App]   Duration:', `${duration}ms`);
+      console.log('[App]   Topics:', questions.map(q => q.topic).join(', '));
+      
+      setLearningQuestions(questions);
+    } catch (err) {
+      console.error("[App] Error generating learning questions:", err);
+      setError("Failed to generate learning questions. Please try again.");
+      // Navigate back to results on error
+      setView('results');
+    } finally {
+      setIsGeneratingQuestions(false);
+      console.log('[App] Question generation completed, isLoading set to false');
+    }
+  };
+
   return (
     <div className="h-screen w-full bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="w-full bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
         <h1 
           className="text-2xl font-semibold text-gray-900 cursor-pointer hover:text-gray-700 transition-colors"
-          onClick={() => setView('quiz')}
+          onClick={() => {
+            if (view === 'learn') {
+              setView('results');
+            } else {
+              setView('quiz');
+            }
+          }}
         >
           CoPair
         </h1>
@@ -248,8 +302,21 @@ const App: React.FC = () => {
 
       {/* Main Content - Scrollable */}
       <main className="flex-1 w-full overflow-y-auto">
-        {view === 'results' && analysisResult ? (
-          <ResultsPage result={analysisResult} />
+        {view === 'learn' ? (
+          <LearnPage 
+            questions={learningQuestions} 
+            onBack={() => {
+              setView('results');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            isLoading={isGeneratingQuestions}
+          />
+        ) : view === 'results' && analysisResult ? (
+          <ResultsPage 
+            result={analysisResult} 
+            onLearnClick={handleLearnClick}
+            isGeneratingQuestions={isGeneratingQuestions}
+          />
         ) : (
           <div className="max-w-5xl mx-auto px-6 py-8">
             {/* Error Message */}

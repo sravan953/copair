@@ -6,6 +6,17 @@
     <title>CoPair</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+    <script>
+      // Monaco Editor Loader
+      (function() {
+        const loaderScript = document.createElement('script');
+        loaderScript.src = 'https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs/loader.js';
+        loaderScript.onload = function() {
+          require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@latest/min/vs' } });
+        };
+        document.head.appendChild(loaderScript);
+      })();
+    </script>
     <style>
       /* Custom scrollbar for a sleek dark look */
       ::-webkit-scrollbar {
