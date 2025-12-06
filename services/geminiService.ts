@@ -18,154 +18,6 @@ const cleanJsonText = (text: string): string => {
   return cleaned;
 };
 
-export const generateProblem = async (difficulty: string = "Medium"): Promise<Problem> => {
-  const prompt = `Generate a single unique Python coding interview problem of ${difficulty} difficulty. 
-  It should be algorithmic in nature (like LeetCode).
-  
-  The output must be a JSON object containing:
-  - id: A unique string identifier.
-  - title: The problem title.
-  - difficulty: "Easy", "Medium", or "Hard".
-  - description: A detailed description in Markdown.
-  - examples: An array of examples with input, output, and explanation.
-  - starterCode: The initial Python function definition.
-  `;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: proModelName,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            id: { type: Type.STRING },
-            title: { type: Type.STRING },
-            difficulty: { type: Type.STRING },
-            description: { type: Type.STRING },
-            examples: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  input: { type: Type.STRING },
-                  output: { type: Type.STRING },
-                  explanation: { type: Type.STRING },
-                }
-              }
-            },
-            starterCode: { type: Type.STRING }
-          }
-        }
-      }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
-    
-    // Clean potential markdown formatting that confuses JSON.parse
-    const cleanedText = cleanJsonText(text);
-    
-    let parsed;
-    try {
-        parsed = JSON.parse(cleanedText);
-    } catch (parseError) {
-        console.error("JSON Parse failed on text:", text);
-        throw parseError;
-    }
-    
-    // Ensure robustness by setting defaults for missing fields
-    const problem: Problem = {
-        id: parsed.id || `gen-${Date.now()}`,
-        title: parsed.title || "Untitled Problem",
-        difficulty: parsed.difficulty || difficulty,
-        description: parsed.description || "No description provided.",
-        examples: Array.isArray(parsed.examples) ? parsed.examples : [],
-        starterCode: parsed.starterCode || "# Write your solution here\ndef solution():\n    pass"
-    };
-
-    return problem;
-  } catch (error) {
-    console.error("Error generating problem:", error);
-    // Fallback problem
-    return {
-      id: "fallback-1",
-      title: "Two Sum",
-      difficulty: "Easy",
-      description: "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.\n\nYou may assume that each input would have **exactly one solution**, and you may not use the same element twice.\n\nYou can return the answer in any order.",
-      examples: [
-        { input: "nums = [2,7,11,15], target = 9", output: "[0,1]", explanation: "Because nums[0] + nums[1] == 9, we return [0, 1]." }
-      ],
-      starterCode: "def two_sum(nums, target):\n    # Your code here\n    pass"
-    };
-  }
-};
-
-export const judgeSubmission = async (
-  problem: Problem,
-  code: string,
-  executionOutput: string,
-  error?: string
-): Promise<string> => {
-  const systemPrompt = `You are a strict but helpful technical interviewer. 
-  The user has submitted a Python solution to a coding problem.
-  
-  Problem: ${problem.title}
-  Description: ${problem.description}
-  
-  User Code:
-  \`\`\`python
-  ${code}
-  \`\`\`
-  
-  Execution Output (Stdout):
-  ${executionOutput}
-  
-  Execution Error (Stderr):
-  ${error || "None"}
-  
-  Analyze the code for:
-  1. Correctness (does it look like it solves the logic?)
-  2. Efficiency (Big O time/space)
-  3. Code Style (Pythonic practices)
-  
-  If there is an error, explain it simply.
-  If the output is wrong based on standard expectations for this problem, point it out.
-  Keep your response concise (under 200 words) but informative. Use Markdown.`;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: proModelName,
-      contents: systemPrompt,
-    });
-    return response.text || "Could not generate judgment.";
-  } catch (err) {
-    return "Error connecting to the Judge AI.";
-  }
-};
-
-export const chatWithJudge = async (
-  history: { role: string; parts: { text: string }[] }[],
-  message: string
-): Promise<string> => {
-    try {
-        const chat = ai.chats.create({
-            model: proModelName,
-            history: history,
-            config: {
-                systemInstruction: "You are a helpful coding tutor assisting a user with a Python algorithm problem. Do not give the full answer immediately; guide them."
-            }
-        });
-        
-        const result = await chat.sendMessage({ message: message });
-        return result.text;
-    } catch (e) {
-        console.error("Chat error", e);
-        return "I'm having trouble thinking right now. Please try again.";
-    }
-}
-
 export interface QuizQuestion {
   topic: string;
   question: string;
@@ -389,8 +241,11 @@ The question should:
 - Be a Python coding problem that teaches the concept they struggled with
 - Be appropriate for interview preparation (like LeetCode style)
 - Include exactly 2 examples with input, output, and output explanations
-- Provide starter code with function signature and required arguments
+- Provide starter code with a class Solution containing the method signature (e.g., "class Solution: def method_name(self, ...):")
+- The starter code must always include "class Solution" following standard LeetCode-style structure
+- Include any necessary imports in the starterCode (e.g., "from typing import List", "from collections import deque", etc.)
 - Include the complete solution as the answer
+- Include exactly 5 test cases. Each test case should be Python code that calls the solution method with test inputs, and the expected output as a string
 
 Return only valid JSON. Do not include any additional text, explanations, or markdown formatting outside the JSON structure.`;
 
@@ -411,7 +266,6 @@ Return only valid JSON. Do not include any additional text, explanations, or mar
           properties: {
             title: { type: Type.STRING },
             question: { type: Type.STRING },
-            description: { type: Type.STRING },
             example1: {
               type: Type.OBJECT,
               properties: {
@@ -431,9 +285,20 @@ Return only valid JSON. Do not include any additional text, explanations, or mar
               required: ["input", "output", "outputExplanation"]
             },
             starterCode: { type: Type.STRING },
-            answer: { type: Type.STRING }
+            answer: { type: Type.STRING },
+            testCases: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  input: { type: Type.STRING },
+                  expectedOutput: { type: Type.STRING }
+                },
+                required: ["input", "expectedOutput"]
+              }
+            }
           },
-          required: ["title", "question", "description", "example1", "example2", "starterCode", "answer"]
+          required: ["title", "question", "example1", "example2", "starterCode", "answer", "testCases"]
         }
       }
     });
@@ -463,189 +328,31 @@ Return only valid JSON. Do not include any additional text, explanations, or mar
     
     const question: LearningQuestion = {
       topic: weakArea.topic,
-      title: parsed.title || "Practice Question",
-      question: parsed.question || "Solve this problem.",
-      description: parsed.description || "Solve this problem to improve your understanding.",
+      title: parsed.title,
+      question: parsed.question,
+      description: "",
       example1: {
-        input: parsed.example1?.input || "",
-        output: parsed.example1?.output || "",
-        outputExplanation: parsed.example1?.outputExplanation || ""
+        input: parsed.example1.input,
+        output: parsed.example1.output,
+        outputExplanation: parsed.example1.outputExplanation
       },
       example2: {
-        input: parsed.example2?.input || "",
-        output: parsed.example2?.output || "",
-        outputExplanation: parsed.example2?.outputExplanation || ""
+        input: parsed.example2.input,
+        output: parsed.example2.output,
+        outputExplanation: parsed.example2.outputExplanation
       },
-      starterCode: parsed.starterCode || "def solution():\n    pass",
-      answer: parsed.answer || ""
+      starterCode: parsed.starterCode,
+      answer: parsed.answer,
+      testCases: Array.isArray(parsed.testCases) ? parsed.testCases.map((tc: any) => ({
+        input: tc.input,
+        expectedOutput: tc.expectedOutput
+      })) : []
     };
 
     console.log('[GeminiService] Generated single learning question successfully');
     return question;
   } catch (err) {
     console.error("Error generating learning question:", err);
-    throw err;
-  }
-};
-
-export const generateLearningQuestions = async (
-  weakAreas: AnalysisResult['weakAreas']
-): Promise<LearningQuestion[]> => {
-  console.log('[GeminiService] generateLearningQuestions called with', weakAreas.length, 'weak areas');
-  
-  if (weakAreas.length === 0) {
-    console.warn('[GeminiService] No weak areas provided, returning empty array');
-    return [];
-  }
-
-  console.log('[GeminiService] Weak areas details:');
-  weakAreas.forEach((area, idx) => {
-    console.log(`  ${idx + 1}. ${area.topic} - ${area.incorrectCount}/${area.totalQuestions} incorrect`);
-  });
-
-  const prompt = `Generate practice coding questions to help a student learn from their mistakes.
-
-The student struggled with the following topics:
-${weakAreas.map((area, idx) => `
-${idx + 1}. ${area.topic}
-   - Incorrect: ${area.incorrectCount} out of ${area.totalQuestions} questions
-   - Common mistakes: ${area.commonMistakes.join(', ')}
-   - Recommendations: ${area.recommendations.join(', ')}
-`).join('\n')}
-
-Generate ONE practice coding question per weak area.
-
-The output must be a JSON array. Each array element must be a JSON object containing ONLY these fields:
-- title: A brief title for the question (string, e.g., "Two Sum")
-- question: A descriptive question statement that clearly explains what the problem asks (string)
-- description: A detailed problem description in Markdown (string)
-- example1: An object with:
-  - input: Example input (string)
-  - output: Example output (string)
-  - outputExplanation: Explanation of why this output is correct (string)
-- example2: An object with:
-  - input: Example input (string)
-  - output: Example output (string)
-  - outputExplanation: Explanation of why this output is correct (string)
-- starterCode: Python starter code template with function definition and all required function arguments (string)
-- answer: The complete solution code (string)
-
-Each question should:
-- Be a Python coding problem that teaches the concept they struggled with
-- Be appropriate for interview preparation (like LeetCode style)
-- Include exactly 2 examples with input, output, and output explanations
-- Provide starter code with function signature and required arguments
-- Include the complete solution as the answer
-
-Return only valid JSON. Do not include any additional text, explanations, or markdown formatting outside the JSON structure.`;
-
-  try {
-    console.log('[GeminiService] Calling Gemini API with model:', proModelName);
-    const apiStartTime = Date.now();
-    
-    const response = await ai.models.generateContent({
-      model: proModelName,
-      contents: prompt,
-      config: {
-        thinkingConfig: {
-          thinkingLevel: ThinkingLevel.LOW
-        },
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              question: { type: Type.STRING },
-              description: { type: Type.STRING },
-              example1: {
-                type: Type.OBJECT,
-                properties: {
-                  input: { type: Type.STRING },
-                  output: { type: Type.STRING },
-                  outputExplanation: { type: Type.STRING }
-                },
-                required: ["input", "output", "outputExplanation"]
-              },
-              example2: {
-                type: Type.OBJECT,
-                properties: {
-                  input: { type: Type.STRING },
-                  output: { type: Type.STRING },
-                  outputExplanation: { type: Type.STRING }
-                },
-                required: ["input", "output", "outputExplanation"]
-              },
-              starterCode: { type: Type.STRING },
-              answer: { type: Type.STRING }
-            },
-            required: ["title", "question", "description", "example1", "example2", "starterCode", "answer"]
-          }
-        }
-      }
-    });
-
-    const apiDuration = Date.now() - apiStartTime;
-    console.log('[GeminiService] Gemini API response received in', `${apiDuration}ms`);
-    
-    const text = response.text;
-    if (!text) {
-      console.error('[GeminiService] No text in response');
-      throw new Error("No response from Gemini");
-    }
-    
-    console.log('[GeminiService] Response text length:', text.length);
-    
-    const cleanedText = cleanJsonText(text);
-    console.log('[GeminiService] Cleaned text length:', cleanedText.length);
-    
-    let parsed;
-    try {
-      parsed = JSON.parse(cleanedText);
-      console.log('[GeminiService] JSON parsed successfully, type:', Array.isArray(parsed) ? 'array' : typeof parsed);
-    } catch (parseError) {
-      console.error("[GeminiService] JSON Parse failed on text:", text);
-      throw parseError;
-    }
-    
-    // Validate and format learning questions
-    const questions: LearningQuestion[] = Array.isArray(parsed) ? parsed.map((q: any, idx: number) => {
-      const topic = weakAreas[idx]?.topic || `Topic ${idx + 1}`;
-      console.log(`[GeminiService] Processing question ${idx + 1}:`);
-      console.log(`[GeminiService]   Topic:`, topic);
-      console.log(`[GeminiService]   Title:`, q.title);
-      console.log(`[GeminiService]   Question:`, q.question);
-      console.log(`[GeminiService]   Has description:`, !!q.description);
-      console.log(`[GeminiService]   Has example1:`, !!q.example1);
-      console.log(`[GeminiService]   Has example2:`, !!q.example2);
-      console.log(`[GeminiService]   Has starter code:`, !!q.starterCode);
-      console.log(`[GeminiService]   Has answer:`, !!q.answer);
-      
-      return {
-      topic: topic,
-      title: q.title || "Practice Question",
-      question: q.question || "Solve this problem.",
-      description: q.description || "Solve this problem to improve your understanding.",
-      example1: {
-        input: q.example1?.input || "",
-        output: q.example1?.output || "",
-        outputExplanation: q.example1?.outputExplanation || ""
-      },
-      example2: {
-        input: q.example2?.input || "",
-        output: q.example2?.output || "",
-        outputExplanation: q.example2?.outputExplanation || ""
-      },
-      starterCode: q.starterCode || "def solution():\n    pass",
-      answer: q.answer || ""
-    };
-    }) : [];
-
-    console.log('[GeminiService] Generated', questions.length, 'learning questions successfully');
-    return questions;
-  } catch (err) {
-    console.error("Error generating learning questions:", err);
     throw err;
   }
 };

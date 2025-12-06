@@ -20,6 +20,17 @@ export interface ChatMessage {
 export interface ExecutionResult {
   output: string;
   error?: string;
+  testResults?: {
+    passed: number;
+    total: number;
+    cases: {
+      input: string;
+      expectedOutput: string;
+      actualOutput: string;
+      passed: boolean;
+      error?: string;
+    }[];
+  };
 }
 
 export enum TabState {
@@ -71,4 +82,8 @@ export interface LearningQuestion {
   };
   starterCode: string;
   answer: string;
+  testCases: {
+    input: string;  // Python code that calls the function, e.g., "solution([1,2,3], 5)"
+    expectedOutput: string;  // Expected output as string, e.g., "[0, 2]"
+  }[];
 }

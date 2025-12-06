@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { LearningQuestion } from '../types';
 import MonacoEditor from './MonacoEditor';
-import { runPythonCode, initPyodide } from '../services/pyodideService';
+import { runPythonCode, runPythonCodeWithTests, initPyodide } from '../services/pyodideService';
 import { ExecutionResult } from '../types';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 
 interface LearnPageProps {
   questions: (LearningQuestion | undefined)[];
@@ -90,7 +90,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
       console.log('[LearnPage] Current question changed');
       console.log('[LearnPage]   Index:', currentIndex);
       console.log('[LearnPage]   Topic:', currentQuestion.topic);
-      console.log('[LearnPage]   Question:', currentQuestion.question);
+      console.log('[LearnPage]   Description:', currentQuestion.description);
       console.log('[LearnPage]   Starter code length:', currentQuestion.starterCode.length);
       setCode(currentQuestion.starterCode);
       setExecutionResult(null);
@@ -122,7 +122,18 @@ const LearnPage: React.FC<LearnPageProps> = ({
     
     try {
       const startTime = Date.now();
-      const result = await runPythonCode(code);
+      
+      // Check if we have test cases to run
+      const hasTestCases = currentQuestion?.testCases && currentQuestion.testCases.length > 0;
+      
+      let result: ExecutionResult;
+      if (hasTestCases) {
+        console.log('[LearnPage] Running code with test cases:', currentQuestion.testCases.length);
+        result = await runPythonCodeWithTests(code, currentQuestion.testCases);
+      } else {
+        result = await runPythonCode(code);
+      }
+      
       const duration = Date.now() - startTime;
       
       console.log('[LearnPage] Code execution completed');
@@ -130,6 +141,9 @@ const LearnPage: React.FC<LearnPageProps> = ({
       console.log('[LearnPage]   Has output:', !!result.output);
       console.log('[LearnPage]   Has error:', !!result.error);
       console.log('[LearnPage]   Output length:', result.output?.length || 0);
+      if (result.testResults) {
+        console.log('[LearnPage]   Test results:', `${result.testResults.passed}/${result.testResults.total} passed`);
+      }
       
       setExecutionResult(result);
     } catch (err) {
@@ -259,10 +273,12 @@ const LearnPage: React.FC<LearnPageProps> = ({
               <span className="inline-block px-3 py-1 text-xs font-medium text-slate-300 bg-slate-800 rounded-full mb-4">
                 {currentQuestion.topic}
               </span>
-            </div>
-
-            <div className="prose prose-invert prose-sm max-w-none mb-6">
-              <ReactMarkdown>{currentQuestion.description}</ReactMarkdown>
+              <h2 className="text-xl font-semibold text-slate-200 mb-3">
+                {currentQuestion.title}
+              </h2>
+              <div className="prose prose-invert prose-sm max-w-none">
+                <ReactMarkdown>{currentQuestion.question}</ReactMarkdown>
+              </div>
             </div>
 
             <div className="space-y-4 mb-6">
@@ -327,22 +343,103 @@ const LearnPage: React.FC<LearnPageProps> = ({
           </div>
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
             {executionResult ? (
-              <div className="space-y-2">
-                {executionResult.output && (
-                  <div className="bg-slate-800 rounded-lg p-3">
-                    <p className="text-xs text-slate-400 mb-1">Stdout:</p>
-                    <pre className="text-sm text-slate-200 font-mono whitespace-pre-wrap">
-                      {executionResult.output || '(no output)'}
-                    </pre>
-                  </div>
-                )}
-                {executionResult.error && (
-                  <div className="bg-red-900/30 border border-red-800 rounded-lg p-3">
-                    <p className="text-xs text-red-400 mb-1">Stderr:</p>
-                    <pre className="text-sm text-red-300 font-mono whitespace-pre-wrap">
-                      {executionResult.error}
-                    </pre>
-                  </div>
+              <div className="space-y-3">
+                {executionResult.testResults && executionResult.testResults.cases.length > 0 ? (
+                  <>
+                    {/* Test Results Summary */}
+                    <div className={`rounded-lg p-3 border ${
+                      executionResult.testResults.passed === executionResult.testResults.total
+                        ? 'bg-green-900/20 border-green-800'
+                        : 'bg-yellow-900/20 border-yellow-800'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-slate-200">
+                          Test Results
+                        </p>
+                        <p className={`text-sm font-bold ${
+                          executionResult.testResults.passed === executionResult.testResults.total
+                            ? 'text-green-400'
+                            : 'text-yellow-400'
+                        }`}>
+                          {executionResult.testResults.passed}/{executionResult.testResults.total} passed
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Individual Test Cases */}
+                    <div className="space-y-2">
+                      {executionResult.testResults.cases.map((testCase, index) => (
+                        <div
+                          key={index}
+                          className={`rounded-lg p-3 border ${
+                            testCase.passed
+                              ? 'bg-green-900/10 border-green-800/50'
+                              : 'bg-red-900/20 border-red-800/50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2 mb-2">
+                            {testCase.passed ? (
+                              <Check size={18} className="text-green-400 flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <X size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+                            )}
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-slate-300 mb-1">
+                                Test Case {index + 1}
+                              </p>
+                              <div className="bg-slate-800/50 rounded p-2 mb-2">
+                                <p className="text-xs text-slate-400 mb-1">Input:</p>
+                                <pre className="text-xs text-slate-200 font-mono whitespace-pre-wrap">
+                                  {testCase.input}
+                                </pre>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="bg-slate-800/50 rounded p-2">
+                                  <p className="text-xs text-slate-400 mb-1">Expected:</p>
+                                  <pre className="text-xs text-slate-200 font-mono whitespace-pre-wrap">
+                                    {testCase.expectedOutput}
+                                  </pre>
+                                </div>
+                                <div className={`rounded p-2 ${
+                                  testCase.passed ? 'bg-green-900/20' : 'bg-red-900/20'
+                                }`}>
+                                  <p className="text-xs text-slate-400 mb-1">Got:</p>
+                                  <pre className={`text-xs font-mono whitespace-pre-wrap ${
+                                    testCase.passed ? 'text-green-300' : 'text-red-300'
+                                  }`}>
+                                    {testCase.actualOutput}
+                                  </pre>
+                                </div>
+                              </div>
+                              {testCase.error && (
+                                <div className="mt-2 bg-red-900/30 rounded p-2">
+                                  <p className="text-xs text-red-400">{testCase.error}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Standard Output Display (when no test cases) */}
+                    <div className="bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-slate-400 mb-1">Stdout:</p>
+                      <pre className="text-sm text-slate-200 font-mono whitespace-pre-wrap">
+                        {executionResult.output || '(no output)'}
+                      </pre>
+                    </div>
+                    {executionResult.error && (
+                      <div className="bg-red-900/30 border border-red-800 rounded-lg p-3">
+                        <p className="text-xs text-red-400 mb-1">Stderr:</p>
+                        <pre className="text-sm text-red-300 font-mono whitespace-pre-wrap">
+                          {executionResult.error}
+                        </pre>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ) : (

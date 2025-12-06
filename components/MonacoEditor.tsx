@@ -20,6 +20,11 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<any>(null);
+  const codeRef = useRef<string>(code);
+
+  useEffect(() => {
+    codeRef.current = code;
+  }, [code]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -52,9 +57,10 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
     const createEditor = () => {
       if (containerRef.current && !editorRef.current && window.monaco) {
-        console.log('[MonacoEditor] Creating Monaco editor instance');
+        const currentCode = codeRef.current;
+        console.log('[MonacoEditor] Creating Monaco editor instance, code length:', currentCode.length);
         editorRef.current = window.monaco.editor.create(containerRef.current, {
-          value: code,
+          value: currentCode,
           language: 'python',
           theme: 'vs-dark',
           automaticLayout: true,
@@ -87,9 +93,14 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
   }, [onChange]);
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.getValue() !== code) {
-      console.log('[MonacoEditor] Setting code value, length:', code.length);
-      editorRef.current.setValue(code);
+    if (editorRef.current) {
+      const currentValue = editorRef.current.getValue();
+      if (currentValue !== code) {
+        console.log('[MonacoEditor] Updating code value, new length:', code.length, 'old length:', currentValue.length);
+        editorRef.current.setValue(code);
+      }
+    } else if (code && window.monaco) {
+      console.log('[MonacoEditor] Editor not yet created but code is available, will be set on creation');
     }
   }, [code]);
 
