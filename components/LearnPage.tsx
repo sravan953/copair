@@ -232,30 +232,16 @@ const LearnPage: React.FC<LearnPageProps> = ({
   
   if (isLoading || (!hasQuestions && !isGeneratingCurrent)) {
     return (
-      <div className="h-full flex flex-col bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Practice Mode</h1>
-            <p className="text-sm text-gray-600 mt-1">Preparing your learning experience...</p>
-          </div>
-          <button
-            onClick={onBack}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            Back to Results
-          </button>
-        </div>
-
+      <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950">
         {/* Loading Banner */}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-2xl px-6">
             <div className="mb-8">
-              <div className="w-16 h-16 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-6"></div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+              <div className="w-16 h-16 border-4 border-gray-300 dark:border-slate-700 border-t-gray-900 dark:border-t-slate-200 rounded-full animate-spin mx-auto mb-6"></div>
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-200 mb-4">
                 {LOADING_MESSAGES[loadingMessageIndex]}
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-slate-400">
                 We're generating personalized practice questions based on your weak areas.
                 This might take a moment...
               </p>
@@ -269,29 +255,16 @@ const LearnPage: React.FC<LearnPageProps> = ({
   // Show loading if current question is being generated
   if (isGeneratingCurrent || !currentQuestion) {
     return (
-      <div className="h-full flex flex-col bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Practice Mode</h1>
-          </div>
-          <button
-            onClick={onBack}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            Back to Results
-          </button>
-        </div>
-
+      <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950">
         {/* Loading Banner */}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-2xl px-6">
             <div className="mb-8">
-              <div className="w-16 h-16 border-4 border-gray-300 border-t-gray-900 rounded-full animate-spin mx-auto mb-6"></div>
-              <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+              <div className="w-16 h-16 border-4 border-gray-300 dark:border-slate-700 border-t-gray-900 dark:border-t-slate-200 rounded-full animate-spin mx-auto mb-6"></div>
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-200 mb-4">
                 {LOADING_MESSAGES[loadingMessageIndex]}
               </h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-slate-400">
                 Generating question {currentIndex + 1} of {totalQuestions}...
               </p>
             </div>
@@ -302,68 +275,55 @@ const LearnPage: React.FC<LearnPageProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Practice Mode</h1>
-        </div>
-        <button
-          onClick={onBack}
-          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-        >
-          Back to Results
-        </button>
-      </div>
-
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-slate-950">
       {/* Main Content - 3 Columns */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Column - Question */}
-        <div className="w-1/3 flex flex-col bg-slate-900 border-r border-slate-800 overflow-hidden">
+        <div className="w-1/3 flex flex-col bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 overflow-hidden">
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div className="mb-6">
-              <p className="text-sm text-slate-400 mb-2">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">
                 Question {currentIndex + 1} of {totalQuestions}
               </p>
-              <span className="inline-block px-3 py-1 text-xs font-medium text-slate-300 bg-slate-800 rounded-full mb-4">
+              <span className="inline-block px-3 py-1 text-xs font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 rounded-full mb-4">
                 {currentQuestion.topic}
               </span>
-              <h2 className="text-xl font-semibold text-slate-200 mb-3">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-200 mb-3">
                 {currentQuestion.title}
               </h2>
-              <div className="prose prose-invert prose-sm max-w-none">
+              <div className="prose prose-sm dark:prose-invert max-w-none">
                 <ReactMarkdown>{currentQuestion.question}</ReactMarkdown>
               </div>
             </div>
 
             <div className="space-y-4 mb-6">
-              <h3 className="text-lg font-semibold text-slate-200">Examples:</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200">Examples:</h3>
               
-              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                <p className="text-sm font-semibold text-slate-300 mb-2">Example 1:</p>
+              <div className="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+                <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Example 1:</p>
                 <div className="space-y-1 font-mono text-sm">
-                  <p><span className="text-slate-500">Input:</span> <span className="text-slate-200">{currentQuestion.example1.input}</span></p>
-                  <p><span className="text-slate-500">Output:</span> <span className="text-slate-200">{currentQuestion.example1.output}</span></p>
-                  <p className="text-slate-400 text-xs mt-2"><span className="text-slate-500">Explanation:</span> {currentQuestion.example1.outputExplanation}</p>
+                  <p><span className="text-gray-500 dark:text-slate-500">Input:</span> <span className="text-gray-900 dark:text-slate-200">{currentQuestion.example1.input}</span></p>
+                  <p><span className="text-gray-500 dark:text-slate-500">Output:</span> <span className="text-gray-900 dark:text-slate-200">{currentQuestion.example1.output}</span></p>
+                  <p className="text-gray-600 dark:text-slate-400 text-xs mt-2"><span className="text-gray-500 dark:text-slate-500">Explanation:</span> {currentQuestion.example1.outputExplanation}</p>
                 </div>
               </div>
 
-              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                <p className="text-sm font-semibold text-slate-300 mb-2">Example 2:</p>
+              <div className="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 border border-gray-200 dark:border-slate-700">
+                <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Example 2:</p>
                 <div className="space-y-1 font-mono text-sm">
-                  <p><span className="text-slate-500">Input:</span> <span className="text-slate-200">{currentQuestion.example2.input}</span></p>
-                  <p><span className="text-slate-500">Output:</span> <span className="text-slate-200">{currentQuestion.example2.output}</span></p>
-                  <p className="text-slate-400 text-xs mt-2"><span className="text-slate-500">Explanation:</span> {currentQuestion.example2.outputExplanation}</p>
+                  <p><span className="text-gray-500 dark:text-slate-500">Input:</span> <span className="text-gray-900 dark:text-slate-200">{currentQuestion.example2.input}</span></p>
+                  <p><span className="text-gray-500 dark:text-slate-500">Output:</span> <span className="text-gray-900 dark:text-slate-200">{currentQuestion.example2.output}</span></p>
+                  <p className="text-gray-600 dark:text-slate-400 text-xs mt-2"><span className="text-gray-500 dark:text-slate-500">Explanation:</span> {currentQuestion.example2.outputExplanation}</p>
                 </div>
               </div>
             </div>
 
             {/* Navigation */}
-            <div className="mt-6 flex items-center justify-between pt-6 border-t border-slate-700">
+            <div className="mt-6 flex items-center justify-between pt-6 border-t border-gray-200 dark:border-slate-700">
               <button
                 onClick={handlePrevious}
                 disabled={currentIndex === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-slate-800 hover:bg-gray-300 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 dark:text-slate-200 rounded-lg transition-colors"
               >
                 <ChevronLeft size={18} />
                 Previous
@@ -371,7 +331,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
               <button
                 onClick={handleNext}
                 disabled={currentIndex >= totalQuestions - 1}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-200 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-slate-800 hover:bg-gray-300 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 dark:text-slate-200 rounded-lg transition-colors"
               >
                 Next
                 <ChevronRight size={18} />
@@ -394,9 +354,9 @@ const LearnPage: React.FC<LearnPageProps> = ({
         </div>
 
         {/* Right Column - Output */}
-        <div className="w-1/3 flex flex-col bg-slate-900 border-l border-slate-800 overflow-hidden">
-          <div className="h-12 bg-slate-800 border-b border-slate-700 flex items-center px-4 flex-shrink-0">
-            <h3 className="text-sm font-semibold text-slate-200">Output</h3>
+        <div className="w-1/3 flex flex-col bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 overflow-hidden">
+          <div className="h-12 bg-gray-100 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center px-4 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-200">Output</h3>
           </div>
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
             {executionResult ? (
@@ -406,17 +366,17 @@ const LearnPage: React.FC<LearnPageProps> = ({
                     {/* Test Results Summary */}
                     <div className={`rounded-lg p-3 border ${
                       executionResult.testResults.passed === executionResult.testResults.total
-                        ? 'bg-green-900/20 border-green-800'
-                        : 'bg-yellow-900/20 border-yellow-800'
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                        : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
                     }`}>
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-slate-200">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-slate-200">
                           Test Results
                         </p>
                         <p className={`text-sm font-bold ${
                           executionResult.testResults.passed === executionResult.testResults.total
-                            ? 'text-green-400'
-                            : 'text-yellow-400'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-yellow-600 dark:text-yellow-400'
                         }`}>
                           {executionResult.testResults.passed}/{executionResult.testResults.total} passed
                         </p>
@@ -430,47 +390,47 @@ const LearnPage: React.FC<LearnPageProps> = ({
                           key={index}
                           className={`rounded-lg p-3 border ${
                             testCase.passed
-                              ? 'bg-green-900/10 border-green-800/50'
-                              : 'bg-red-900/20 border-red-800/50'
+                              ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/50'
+                              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800/50'
                           }`}
                         >
                           <div className="flex items-start gap-2 mb-2">
                             {testCase.passed ? (
-                              <Check size={18} className="text-green-400 flex-shrink-0 mt-0.5" />
+                              <Check size={18} className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
                             ) : (
-                              <X size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+                              <X size={18} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                             )}
                             <div className="flex-1">
-                              <p className="text-xs font-semibold text-slate-300 mb-1">
+                              <p className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                                 Test Case {index + 1}
                               </p>
-                              <div className="bg-slate-800/50 rounded p-2 mb-2">
-                                <p className="text-xs text-slate-400 mb-1">Input:</p>
-                                <pre className="text-xs text-slate-200 font-mono whitespace-pre-wrap">
+                              <div className="bg-gray-100 dark:bg-slate-800/50 rounded p-2 mb-2">
+                                <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Input:</p>
+                                <pre className="text-xs text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap">
                                   {testCase.input}
                                 </pre>
                               </div>
                               <div className="grid grid-cols-2 gap-2">
-                                <div className="bg-slate-800/50 rounded p-2">
-                                  <p className="text-xs text-slate-400 mb-1">Expected:</p>
-                                  <pre className="text-xs text-slate-200 font-mono whitespace-pre-wrap">
+                                <div className="bg-gray-100 dark:bg-slate-800/50 rounded p-2">
+                                  <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Expected:</p>
+                                  <pre className="text-xs text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap">
                                     {testCase.expectedOutput}
                                   </pre>
                                 </div>
                                 <div className={`rounded p-2 ${
-                                  testCase.passed ? 'bg-green-900/20' : 'bg-red-900/20'
+                                  testCase.passed ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'
                                 }`}>
-                                  <p className="text-xs text-slate-400 mb-1">Got:</p>
+                                  <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Got:</p>
                                   <pre className={`text-xs font-mono whitespace-pre-wrap ${
-                                    testCase.passed ? 'text-green-300' : 'text-red-300'
+                                    testCase.passed ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'
                                   }`}>
                                     {testCase.actualOutput}
                                   </pre>
                                 </div>
                               </div>
                               {testCase.error && (
-                                <div className="mt-2 bg-red-900/30 rounded p-2">
-                                  <p className="text-xs text-red-400">{testCase.error}</p>
+                                <div className="mt-2 bg-red-100 dark:bg-red-900/30 rounded p-2">
+                                  <p className="text-xs text-red-600 dark:text-red-400">{testCase.error}</p>
                                 </div>
                               )}
                             </div>
@@ -482,16 +442,16 @@ const LearnPage: React.FC<LearnPageProps> = ({
                 ) : (
                   <>
                     {/* Standard Output Display (when no test cases) */}
-                    <div className="bg-slate-800 rounded-lg p-3">
-                      <p className="text-xs text-slate-400 mb-1">Stdout:</p>
-                      <pre className="text-sm text-slate-200 font-mono whitespace-pre-wrap">
+                    <div className="bg-gray-100 dark:bg-slate-800 rounded-lg p-3">
+                      <p className="text-xs text-gray-600 dark:text-slate-400 mb-1">Stdout:</p>
+                      <pre className="text-sm text-gray-900 dark:text-slate-200 font-mono whitespace-pre-wrap">
                         {executionResult.output || '(no output)'}
                       </pre>
                     </div>
                     {executionResult.error && (
-                      <div className="bg-red-900/30 border border-red-800 rounded-lg p-3">
-                        <p className="text-xs text-red-400 mb-1">Stderr:</p>
-                        <pre className="text-sm text-red-300 font-mono whitespace-pre-wrap">
+                      <div className="bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                        <p className="text-xs text-red-600 dark:text-red-400 mb-1">Stderr:</p>
+                        <pre className="text-sm text-red-700 dark:text-red-300 font-mono whitespace-pre-wrap">
                           {executionResult.error}
                         </pre>
                       </div>
@@ -500,7 +460,7 @@ const LearnPage: React.FC<LearnPageProps> = ({
                 )}
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-slate-500">
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-slate-500">
                 <p className="text-sm">Run your code to see output here</p>
               </div>
             )}

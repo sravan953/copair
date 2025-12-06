@@ -3,6 +3,7 @@ import { analyzeWeakAreas, QuizQuestion, generateSingleLearningQuestion } from '
 import { AnalysisResult, LearningQuestion } from './types';
 import ResultsPage from './components/ResultsPage';
 import LearnPage from './components/LearnPage';
+import { ArrowLeft } from 'lucide-react';
 
 interface Question {
   topic: string;
@@ -330,21 +331,29 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen w-full bg-gray-50 flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-gray-50 dark:bg-slate-950 flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="w-full bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-        <h1 
-          className="text-2xl font-semibold text-gray-900 cursor-pointer hover:text-gray-700 transition-colors"
-          onClick={() => {
-            if (view === 'learn') {
-              setView('results');
-            } else {
-              setView('quiz');
-            }
-          }}
-        >
-          CoPair
-        </h1>
+      <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {(view === 'learn' || view === 'results') && (
+            <button
+              onClick={() => {
+                if (view === 'learn') {
+                  setView('results');
+                } else if (view === 'results') {
+                  setView('quiz');
+                }
+              }}
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              aria-label="Go back"
+            >
+              <ArrowLeft size={20} className="text-gray-700 dark:text-slate-300" />
+            </button>
+          )}
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-slate-200">
+            CoPair
+          </h1>
+        </div>
       </header>
 
       {/* Main Content - Scrollable */}
@@ -371,8 +380,8 @@ const App: React.FC = () => {
           <div className="max-w-5xl mx-auto px-6 py-8">
             {/* Error Message */}
             {error && (
-              <div className="mb-8 bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-red-800">{error}</p>
+              <div className="mb-8 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <p className="text-red-800 dark:text-red-300">{error}</p>
               </div>
             )}
 
@@ -380,17 +389,17 @@ const App: React.FC = () => {
           {questions.map((q, index) => (
             <div
               key={index}
-              className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow"
+              className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow"
             >
               {/* Topic Badge */}
               <div className="mb-3">
-                <span className="inline-block px-3 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full">
+                <span className="inline-block px-3 py-1 text-xs font-medium text-gray-600 dark:text-slate-400 bg-gray-100 dark:bg-slate-800 rounded-full">
                   {q.topic}
                 </span>
               </div>
 
               {/* Question */}
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-200 mb-4">
                 Q{index + 1}. {q.question}
               </h2>
 
@@ -404,8 +413,8 @@ const App: React.FC = () => {
                       key={optionIndex}
                       className={`flex items-start p-3 rounded-lg border-2 cursor-pointer transition-colors ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                          : 'border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800'
                       }`}
                     >
                       <input
@@ -414,11 +423,11 @@ const App: React.FC = () => {
                         value={option}
                         checked={isSelected}
                         onChange={() => handleAnswerChange(index, option)}
-                        className="mt-1 mr-3 h-4 w-4 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                        className="mt-1 mr-3 h-4 w-4 text-blue-600 dark:text-blue-500 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-2"
                       />
                       <div className="flex-1">
-                        <span className="font-medium text-gray-700 mr-2">{optionLabel}.</span>
-                        <span className="text-gray-900">{option}</span>
+                        <span className="font-medium text-gray-700 dark:text-slate-300 mr-2">{optionLabel}.</span>
+                        <span className="text-gray-900 dark:text-slate-200">{option}</span>
                       </div>
                     </label>
                   );

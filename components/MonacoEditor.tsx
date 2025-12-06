@@ -62,11 +62,12 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     const createEditor = () => {
       if (containerRef.current && !editorRef.current && window.monaco) {
         const currentCode = codeRef.current;
-        console.log('[MonacoEditor] Creating Monaco editor instance, code length:', currentCode.length);
+        const isDark = document.documentElement.classList.contains('dark');
+        console.log('[MonacoEditor] Creating Monaco editor instance, code length:', currentCode.length, 'theme:', isDark ? 'dark' : 'light');
         editorRef.current = window.monaco.editor.create(containerRef.current, {
           value: currentCode,
           language: 'python',
-          theme: 'vs-dark',
+          theme: isDark ? 'vs-dark' : 'vs',
           automaticLayout: true,
           minimap: { enabled: false },
           fontSize: 14,
@@ -108,21 +109,43 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   }, [code]);
 
+  // Update Monaco theme when system theme changes
+  useEffect(() => {
+    if (!editorRef.current || !window.monaco) return;
+
+    const updateTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      window.monaco.editor.setTheme(isDark ? 'vs-dark' : 'vs');
+    };
+
+    // Initial theme check
+    updateTheme();
+
+    // Watch for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="h-full flex flex-col bg-[#1e1e1e] border-r border-slate-800">
+    <div className="h-full flex flex-col bg-white dark:bg-[#1e1e1e] border-r border-gray-200 dark:border-slate-800">
       {/* Toolbar */}
-      <div className="h-12 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 flex-shrink-0">
+      <div className="h-12 bg-gray-100 dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 flex items-center justify-between px-4 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="text-xs font-mono text-slate-400 bg-slate-800 px-2 py-1 rounded">Python 3.11</div>
+          <div className="text-xs font-mono text-gray-600 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-1 rounded border border-gray-200 dark:border-slate-700">Python 3.11</div>
         </div>
         <div className="flex items-center gap-2">
           <button 
             onClick={onRun}
             disabled={isRunning}
-            className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 text-sm font-medium px-3 py-1.5 rounded transition-all"
+            className="flex items-center gap-1.5 bg-gray-700 dark:bg-slate-700 hover:bg-gray-600 dark:hover:bg-slate-600 disabled:opacity-50 text-white dark:text-slate-200 text-sm font-medium px-3 py-1.5 rounded transition-all"
           >
             <Play size={14} fill="currentColor" />
-            {isRunning ? 'Running...' : 'Run Code'}
+            {isRunning ? 'Running...' : 'Run'}
           </button>
         </div>
       </div>
